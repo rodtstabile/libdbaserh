@@ -1,13 +1,13 @@
 /*
- * libdbaserhi.c: Internal libdbaserh source 
- * 
+ * libdbaserhi.c: Internal libdbaserh source
+ *
  * adapted from libdbasei.c for the use with digiBaseRH
  * (2012-2014 Jan Kamenik)
- * ================================================= 
- * 
- * 
- * libdbasei.c: Internal libdbase source 
- * 
+ * =================================================
+ *
+ *
+ * libdbasei.c: Internal libdbase source
+ *
  * Copyright (c) 2011, 2012 Peder Kock <peder.kock@med.lu.se>
  * Lund University
  *
@@ -18,7 +18,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details. 
+ * GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -40,67 +40,78 @@
 extern int big_endian_test;
 
 /*
-  These status msgs are written to dbase during init() 
+  These status msgs are written to dbase during init()
   Use GCC's compact notation for sparse arrays:
   omitted elements are initialized to zero.
 
    libdbase v. 0.2
-   We'll use this shorter status array instead. 
+   We'll use this shorter status array instead.
    Only the two first msg's differ significantly, the rest are set in init2()
 */
-const unsigned const char _STAT[2][81] = {
+const unsigned char _STAT[2][81] = {
   // first status msg 0-79
   {
   /*JK digiBaseRH*/
-    [1]=0xb3,
+    [1]=0x83,
     [3]=0x0c,  [4]=0x20, [6]=0x30,  [7]=0x20,  [8]=0x03, [13]=0x0a,
-    [19]=0xa0, [22]=0x28,
-    [41]=0xff, [42]=0x03, 
+    [19]=0xa0, [22]=0x00,
+    [41]=0xff, [42]=0x03,
     [43]=0x80, [44]=0x02, //HV Target (in hex, 1.25 is HV_FACTOR constant, dec2hex(800/1.25)=0x0280)
-    [57]=0x5e, [58]=0x01, //Gain stabilization, upper channel  (in hex, dec2hex(350) = 0x015e)
-    [59]=0x2c, [60]=0x01, //Gain stabilization, center channel (in hex, dec2hex(300) = 0x012c)
-    [61]=0xfa, [62]=0x00, //Gain stabilization, lower channel  (in hex, dec2hex(250) = 0x00fa) 
-    [66]=0x80, 
-    [67]=0x9e, [68]=0x00, //Zero stabilization, upper channel  (in hex, dec2hex(158) = 0x009e)
-    [69]=0x85, [70]=0x00, //Zero stabilization, center channel (in hex, dec2hex(133) = 0x0085)
-    [71]=0x6c, [72]=0x00, //Zero stabilization, lower channel  (in hex, dec2hex(108) = 0x006c)
+    
+                          //Default gain stabilitzation for K40 1460.8kev
+                          //If this is not wide enough to overlap at least some of the peak then can it
+                          //wander off in the wrong direction but if too wide centering can end up off center
+                          //floor(1460.8 * 1024 / 3000) = floor(498.619) = 498
+                          //2 * FWHM = 2 * 1460.8*(9.51-0.0038*1460.8)/100 = 115.7 => use a width of 100 
+    [57]=0x24, [58]=0x02, //Gain stabilization, upper channel  (in hex, dec2hex(548) = 0x0224)
+    [59]=0xf2, [60]=0x01, //Gain stabilization, center channel (in hex, dec2hex(498) = 0x01f2)
+    [61]=0xc0, [62]=0x01, //Gain stabilization, lower channel  (in hex, dec2hex(448) = 0x01c0)
+    [66]=0x80,
+                          //Default zero stabilitzation for Ba133 81kev
+                          //floor(81 * 1024 / 3000) = floor(27.648) = 27
+    [67]=0x25, [68]=0x00, //Zero stabilization, upper channel  (in hex, dec2hex(37) = 0x0025)
+    [69]=0x1b, [70]=0x00, //Zero stabilization, center channel (in hex, dec2hex(27) = 0x001b)
+    [71]=0x11, [72]=0x00, //Zero stabilization, lower channel  (in hex, dec2hex(17) = 0x0011)
     [73]=0x40, [77]=0x10, [78]=0x0c, [79]=0x24
    },
   {
   /*JK digiBaseRH*/
-    [1]=0x31,
+    [1]=0x01,
     [3]=0x0c, [4]=0x20, [6]=0x30,  [7]=0x20,  [8]=0x03, [13]=0x0a,
-    [19]=0x20, [22]=0x28,
-    [41]=0xff, [42]=0x03, 
+    [19]=0x20, [22]=0x00,
+    [41]=0xff, [42]=0x03,
     [43]=0x80, [44]=0x02, //HV Target (in hex, 1.25 is HV_FACTOR constant, dec2hex(800/1.25)=0x0280)
-    [57]=0x5e, [58]=0x01, //Gain stabilization, upper channel  (in hex, dec2hex(350) = 0x015e)
-    [59]=0x2c, [60]=0x01, //Gain stabilization, center channel (in hex, dec2hex(300) = 0x012c)
-    [61]=0xfa, [62]=0x00, //Gain stabilization, lower channel  (in hex, dec2hex(250) = 0x00fa) 
-    [67]=0x9e, [68]=0x00, //Zero stabilization, upper channel  (in hex, dec2hex(158) = 0x009e)
-    [69]=0x85, [70]=0x00, //Zero stabilization, center channel (in hex, dec2hex(133) = 0x0085)
-    [71]=0x6c, [72]=0x00, //Zero stabilization, lower channel  (in hex, dec2hex(108) = 0x006c)
+                          //Default gain stabilitzation for K40 1460.8kev
+    [57]=0x24, [58]=0x02, //Gain stabilization, upper channel  (in hex, dec2hex(548) = 0x0224)
+    [59]=0xf2, [60]=0x01, //Gain stabilization, center channel (in hex, dec2hex(498) = 0x01f2)
+    [61]=0xc0, [62]=0x01, //Gain stabilization, lower channel  (in hex, dec2hex(448) = 0x01c0)
+                          //Default zero stabilitzation for Ba133 81kev
+    [67]=0x25, [68]=0x00, //Zero stabilization, upper channel  (in hex, dec2hex(37) = 0x0025)
+    [69]=0x1b, [70]=0x00, //Zero stabilization, center channel (in hex, dec2hex(27) = 0x001b)
+    [71]=0x11, [72]=0x00, //Zero stabilization, lower channel  (in hex, dec2hex(17) = 0x0011)
     [73]=0x40, [78]=0x0c, [79]=0x24
   }
 };
 
 
-/* 
-  JK  Read bytes from EP0_IN -- init process 
+/*
+  JK  Read bytes from EP0_IN -- init process
 */
 int dbase_read_init(libusb_device_handle *dev, unsigned char *bytes, int len, int *read){
   if(dev == NULL){
     fprintf(stderr, "E: dbase_read_init() device handle is null pointer\n");
     return -1;
   }
-  
+
   /* Temporary buffer to avoid overflow errors */
   const int iread_buf = 2 * (DBASE_LEN + 1) * sizeof(int32_t); /* 8192 */
-  unsigned char *buf = (unsigned char *) malloc( iread_buf );
+  unsigned char *buf = (unsigned char *) calloc( iread_buf, 1 );
+  
   if(buf == NULL){
     fprintf(stderr, "E: unable to allocate memory in dbase_read_init()\n");
     return -ENOMEM;
   }
-  
+
   /* Read data from device */
   int err = libusb_bulk_transfer(dev, EP0_IN, buf, iread_buf, read, S_TIMEOUT);
 
@@ -111,43 +122,43 @@ int dbase_read_init(libusb_device_handle *dev, unsigned char *bytes, int len, in
     return -1;
   }
   memcpy(bytes, buf, *read);
-  
+
   if( _DEBUG > 0){
     if(*read == 1)
       printf("Read 0x%02x from device\n", (unsigned char) buf[0]);
     else
       printf("Read %d bytes from device\n", *read);
   }
-  
+
   /* Free temporary buffer */
   free(buf);
-  
+
   return err;
 }
 
-/* 
-   Read bytes from EP (in) 
+/*
+   Read bytes from EP (in)
 */
 int dbase_read(libusb_device_handle *dev, unsigned char *bytes, int len, int *read){
   if(dev == NULL){
     fprintf(stderr, "E: dbase_read() device handle is null pointer\n");
     return -1;
   }
-  
+
   /* Temporary buffer to avoid overflow errors */
   const int iread_buf = 2 * (DBASE_LEN + 1) * sizeof(int32_t); /* 8192 */
-  unsigned char *buf = (unsigned char *) malloc( iread_buf );
+  unsigned char *buf = (unsigned char *) calloc( iread_buf, 1 );
   if(buf == NULL){
     fprintf(stderr, "E: unable to allocate memory in dbase_read()\n");
     return -ENOMEM;
   }
-  
+
   /* Read data from device */
   int err = libusb_bulk_transfer(dev, EP_IN, buf, iread_buf, read, S_TIMEOUT);
   /* Copy data: buf to bytes */
   /*
     2012-02-13, should only copy read bytes
-    was: memcpy(bytes, buf, len); 
+    was: memcpy(bytes, buf, len);
     Added additional check of len
   */
   if(len < *read) {
@@ -156,21 +167,21 @@ int dbase_read(libusb_device_handle *dev, unsigned char *bytes, int len, int *re
     return -1;
   }
   memcpy(bytes, buf, *read);
-  
+
   if( _DEBUG > 0){
     if(*read == 1)
       printf("Read 0x%02x from device\n", (unsigned char) buf[0]);
     else
       printf("Read %d bytes from device\n", *read);
   }
-  
+
   /* Free temporary buffer */
   free(buf);
-  
+
   return err;
 }
 
-/* 
+/*
   JK  Write bytes to EP0_OUT -- init process
 */
 int dbase_write_init(libusb_device_handle *dev, unsigned char *bytes, int len, int *written){
@@ -196,7 +207,7 @@ int dbase_write_init(libusb_device_handle *dev, unsigned char *bytes, int len, i
   return err;
 }
 
-/* 
+/*
    Write bytes to EP (out)
 */
 int dbase_write(libusb_device_handle *dev, unsigned char *bytes, int len, int *written){
@@ -219,7 +230,7 @@ int dbase_write(libusb_device_handle *dev, unsigned char *bytes, int len, int *w
   return err;
 }
 
-/* 
+/*
   JK  Write one byte to EP0_OUT -- init process
 */
 int dbase_write_one_init(libusb_device_handle *dev, unsigned char byte, int *written){
@@ -228,8 +239,8 @@ int dbase_write_one_init(libusb_device_handle *dev, unsigned char byte, int *wri
   return dbase_write_init(dev, &byte, 1, written);
 }
 
-/* 
-   Write one byte to EP (out) 
+/*
+   Write one byte to EP (out)
 */
 int dbase_write_one(libusb_device_handle *dev, unsigned char byte, int *written){
   if( _DEBUG > 0)
@@ -237,7 +248,7 @@ int dbase_write_one(libusb_device_handle *dev, unsigned char byte, int *written)
   return dbase_write(dev, &byte, 1, written);
 }
 
-/* 
+/*
   JK  Check response from device -- init process
 */
 int dbase_checkready_init(libusb_device_handle *dev){
@@ -248,10 +259,10 @@ int dbase_checkready_init(libusb_device_handle *dev){
 
   /*JK -- digiBaseRH, size of response msg is
     START, START2, START3 commands -> 2 bytes
-    check init command -> 6 bytes 
+    check init command -> 6 bytes
    */
 
-  if( err < 0 || read != 2){  
+  if( err < 0 || read != 2){
 
     if (read != 6) {
        if(_DEBUG > 0){
@@ -267,13 +278,13 @@ int dbase_checkready_init(libusb_device_handle *dev){
   /* JK, init needed?
       4 -- init needed, 0 -- unit already awake
   */
-  if(resp[0] == 4 || resp[0] == 0)      
+  if(resp[0] == 4 || resp[0] == 0)
     return resp[0];
 
   return -1;
 }
 
-/* 
+/*
    Check response from device
 */
 int dbase_checkready(libusb_device_handle *dev){
@@ -301,12 +312,12 @@ int dbase_checkready(libusb_device_handle *dev){
   return 1; /*JK, read is 2*/
 }
 
-/* 
-   Clear the internal spectrum of MCB 
+/*
+   Clear the internal spectrum of MCB
 */
 int dbase_send_clear_spectrum(libusb_device_handle *dev){
-  int err, written;
-  
+  int err, written = 0;
+
   /* use calloc to initialize to zeros... */
   unsigned char *buf = calloc( 4097, 1 );
   if(buf == NULL){
@@ -315,15 +326,15 @@ int dbase_send_clear_spectrum(libusb_device_handle *dev){
   }
   /* prepend 0x02 to spectrum */
   buf[0] = (unsigned char)2;
-  
+
   /* Write det->err = dbase_read(dev, (unsigned char*)&tmp_stat, sizeof(status_msg), &io );
 status.LEN int32_t zeros to dbase */
   err = dbase_write(dev, buf, 4097, &written);
-  
+
   /* Free memory */
   free(buf);
   buf = NULL;
-  
+
   if(err < 0 || written != 4097){
     fprintf(stderr, "E: unable to send clear spectrum (sent %d)\n", written);
     err_str("dbase_send_clear_spectrum()", err);
@@ -332,12 +343,12 @@ status.LEN int32_t zeros to dbase */
   return dbase_checkready(dev);
 }
 
-/* 
-   Send status message 
+/*
+   Send status message
 */
 int dbase_write_status(libusb_device_handle *dev, status_msg * stat){
   int err, written;
-  
+
   /* Create temporary buffer to hold status struct + 1 */
   unsigned char buf[sizeof(status_msg) + 1];
   /* Prepend zero at beginning of buffer */
@@ -348,16 +359,16 @@ int dbase_write_status(libusb_device_handle *dev, status_msg * stat){
 
   /* 2012-02-16
      Moved down after memcpy(),
-     changed to buf - we shouldn't touch stat! 
+     changed to buf - we shouldn't touch stat!
   */
   if( IS_BIG_ENDIAN() )
   {
     dbase_byte_swap_status_struct( (status_msg*) (buf+1) );
   }
-  
+
   /* Send status_msg */
   err = dbase_write(dev, buf, sizeof(status_msg) + 1, &written);
-  
+
   /* Check nbr of sent bytes */
   if(err < 0 || written != (sizeof(status_msg) + 1) ){
     printf("E: unable to send whole status_msg ( sent=%d)\n", written);
@@ -368,14 +379,14 @@ int dbase_write_status(libusb_device_handle *dev, status_msg * stat){
   return dbase_checkready(dev);
 }
 
-/* 
-   Read status bytes from device 
+/*
+   Read status bytes from device
 */
 int dbase_get_status(libusb_device_handle *dev, status_msg *stat){
   /* Temporary buffer */
   status_msg tmp_stat;
   int err, io;
-  
+
   /* Request status from device */
   err = dbase_write_one(dev, STATUS, &io);
   if(err < 0 || io != 1) {
@@ -383,8 +394,9 @@ int dbase_get_status(libusb_device_handle *dev, status_msg *stat){
     err_str("dbase_get_status()", err);
   }
   /* Read answer */
+  memset(&tmp_stat, 0, sizeof(tmp_stat));
   err = dbase_read(dev, (unsigned char*)&tmp_stat, sizeof(status_msg), &io );
-  
+
   /* repack big endian struct */
   if( IS_BIG_ENDIAN() )
   {
@@ -392,9 +404,7 @@ int dbase_get_status(libusb_device_handle *dev, status_msg *stat){
   }
   /* Sanity check */
   if( err == 0 &&                             /* no libusb error */
-      io == sizeof(status_msg) &&             /* whole message recieved? */
-      tmp_stat.LEN == (uint16_t)DBASE_LEN &&  /* this is constant on digiBASE */
-      tmp_stat.HVT > (uint16_t) MIN_HV)       /* this also seems sane */
+      io == sizeof(status_msg))               /* whole message recieved? */
   {
     /* Status seems ok - update pointer */
     *stat = tmp_stat;
@@ -405,22 +415,22 @@ int dbase_get_status(libusb_device_handle *dev, status_msg *stat){
   else {
     fprintf(stderr, "W: sanity check failed on recieved status data\n");
   }
-  
+
   return err;
 }
 
-/* 
-   Read spectrum from device 
+/*
+   Read spectrum from device
 */
 int dbase_get_spectrum(libusb_device_handle *dev, int32_t *chans, int32_t *last){
   int err, io;
   const int len = (DBASE_LEN + 1);
   const int len_bytes = len * sizeof(int32_t);
   unsigned char onflag = 1;
-  
+
   /* Temporary buffer */
   int32_t tmp[ len ];
-  
+
   /* Request spectrum */
   err = dbase_write_one(dev, SPECTRUM, &io);
   if(err < 0 || io != 1){
@@ -428,17 +438,17 @@ int dbase_get_spectrum(libusb_device_handle *dev, int32_t *chans, int32_t *last)
     err_str("dbase_get_spectrum()", err);
     return err < 0 ? err : -EIO;
   }
-  
+
   /* Read spectrum bytes into temporary buffer */
   err = dbase_read(dev, (unsigned char*)tmp, len_bytes, &io);
-  
+
   //  if(err < 0 || io != 4096){
   if(err < 0 || io != len_bytes){
     fprintf(stderr, "E: possible incomplete read of spectral data (read %d bytes)\n", io);
     err_str("dbase_get_spectrum()", err);
     return err;
   }
-  
+
   /* Read ok; parse int32, calc changes since last spectrum and update spectrum */
   for(io=0; io < len; io++){
     /* Check for first msmt after clear */
@@ -455,13 +465,13 @@ int dbase_get_spectrum(libusb_device_handle *dev, int32_t *chans, int32_t *last)
     last[io] = tmp[io] - chans[io];
     chans[io] = tmp[io];
   }
-  
+
   /* If onflag is true, set all diff spectra to zeros */
   if(onflag) {
     for(io=0; io < len; io++)
       last[io] = 0;
   }
-  
+
   return err;
 }
 
@@ -493,10 +503,13 @@ void dbase_print_spectrum_file(const int32_t *spec, int len, FILE *fh){
     fprintf(stderr, "E: dbase_print_spectrum_file() unable to allocate memory\n");
     return;
   }
-  
+
   for(k = 0; k < len; k++) {
     left = n - w;
-    w += snprintf(buf+w, left, "%d ", spec[k]);
+    if (k < len-1)
+        w += snprintf(buf+w, left, "%d,", spec[k]);
+    else
+        w += snprintf(buf+w, left, "%d", spec[k]);
     /* Check for overflows in buffer -> flush to fh */
     if( left < 10 ) {
       fprintf(fh, "%s", buf);
@@ -516,23 +529,23 @@ void dbase_print_spectrum_file(const int32_t *spec, int len, FILE *fh){
 
   /* old code
   for(k=0;k<len;k++)
-     fprintf(fh, "%d ", spec[k]); 
+     fprintf(fh, "%d ", spec[k]);
   fprintf(fh, "\n"); */
 }
 
-/* 
-   Actual binary print method 
+/*
+   Actual binary print method
 */
 void dbase_print_file_spectrum_binary(const int32_t *arr, int len, FILE *fh){
  if(fh != NULL && arr != NULL){
    int wtn;
    wtn = fwrite(arr, sizeof(int32_t), len, fh);
    if(wtn != len){
-     fprintf(stderr, 
-	     "E: dbase_print_file_spectrum_binary() written %d should be %d, errno=%d\n",
-	     wtn,
-	     len,
-	     errno);
+     fprintf(stderr,
+             "E: dbase_print_file_spectrum_binary() written %d should be %d, errno=%d\n",
+             wtn,
+             len,
+             errno);
    }
    if( fflush(fh) < 0 )
      fprintf(stderr, "E: dbase_print_file_spectrum_binary() when flushing stream\n");
@@ -543,7 +556,7 @@ void dbase_print_file_spectrum_binary(const int32_t *arr, int len, FILE *fh){
    fprintf(stderr, "E: dbase_print_file_spectrum_binary(): spectrum handle was NULL\n");
 }
 
-/* 
+/*
   JK, digibase init-sequence TODO: "clean" the init process
 */
 int dbase_init(libusb_device_handle *dev, const char *filename){
@@ -553,8 +566,8 @@ int dbase_init(libusb_device_handle *dev, const char *filename){
   /* PHASE I: */
   if(_DEBUG > 0)
     printf("\n\nInit - PHASE I:\n");
- 
- 
+
+
   /* ?? Don't know if these are neccessary... ?? */
  {
     err = libusb_clear_halt(dev, EP0_IN); /*JK*/
@@ -568,7 +581,7 @@ int dbase_init(libusb_device_handle *dev, const char *filename){
       err_str("dbase_init()", err);
     }
   }
-  
+
   /* Already awake?
      - If digiBaseRH is awake and initialized it will
      respond with a 2byte msg to first START command
@@ -576,15 +589,15 @@ int dbase_init(libusb_device_handle *dev, const char *filename){
      already initialized -- 0x00 0x00
   */
 
-  /* Send START command */ 
+  /* Send START command */
   err = dbase_write_init(dev, buf0, sizeof(buf0), &written); /*JK*/
 
 
-  if(err < 0 || written != sizeof(buf0)){  /*JK*/ 
+  if(err < 0 || written != sizeof(buf0)){  /*JK*/
     fprintf(stderr, "E: When writing START command (err=%d, written=%d)\n", err, written);
     err_str("dbase_init(START)", err);
   }
-  
+
   /* New Connection? */
   err = dbase_checkready_init(dev); /*JK*/
 
@@ -604,17 +617,17 @@ int dbase_init(libusb_device_handle *dev, const char *filename){
   return -1;
 }
 
-/* 
+/*
    New Connection - send firmware packages
 */
 int dbase_init2(libusb_device_handle *dev, const char *filename){
   int k, err, written;
   unsigned char buf0[4] = {[0] = START2, [2] = 2};  /* JK, start_msg buffer */
-  
+
   /* PHASE II */
   if(_DEBUG > 0)
     printf("\n\nInit - PHASE II:\n");
-  
+
   /* START2 command */
   err = dbase_write_init(dev, buf0, sizeof(buf0), &written); //HK
 
@@ -626,7 +639,7 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
 
   /* Write packs 1,2 */ /*JK, digiBaseRH - 2 packs of firmware*/
   for(k = 0; k < 2; k++){
- 
+
     /* Get binary data from file */
     int len;
     unsigned char *buf = dbase_get_firmware_pack(filename, k, &len);
@@ -637,7 +650,7 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
 
     /* Write pack k to dbase */
     err = dbase_write_init(dev, buf, len, &written); /*JK*/
-   
+
     /* Free memory */
     free(buf);
 
@@ -653,15 +666,15 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
       fprintf(stderr, "E: sending pack%d to device - aborting!\n", k+1);
       return -EIO;
     }
- 
+
   /*JK, dummy package used for digiBase
-        digiBaseRH seems not to use it --> commented out */  
+        digiBaseRH seems not to use it --> commented out */
   /*   if( k == 1 ){ */
          /* Write dummy pack (NULL) */
   /*      dbase_write(dev, NULL, 0, &written); */
   /*      if(err < 0 || dbase_checkready(dev) != 0x01){ */
   /*        err_str("dbase_init2(), when writing dummy package", err); */
-  /*	fprintf(stderr, "E: sending dummy pack to device - aborting!\n"); */
+  /*    fprintf(stderr, "E: sending dummy pack to device - aborting!\n"); */
   /*        return -EIO; */
   /*      } */
   /*      if(_DEBUG > 0) */
@@ -669,7 +682,7 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
   /*    } */
 
   }/*JK, end of for loop*/
-  
+
   /* Write start */
   buf0[0] = START; /*JK*/
   err = dbase_write_init(dev, buf0, sizeof(buf0), &written); /*JK*/
@@ -692,16 +705,16 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
     return -EIO;
   }
 
-  
+
   /* PHASE III: */
   if(_DEBUG > 0)
     printf("\n\nInit - PHASE III:\n");
 
-  /* 
-    Write status to digiBaseRH, 7 msgs total: 
+  /*
+    Write status to digiBaseRH, 7 msgs total:
       - No1 msg from predefined _STAT
-      - 2times No2 msg from _STAT 
-      - one string 0x04 = START2, 
+      - 2times No2 msg from _STAT
+      - one string 0x04 = START2,
       - No2 msg from _STAT with changed [77] byte, clear counter
       - 2times No2 msg from _STAT
   */
@@ -718,23 +731,23 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
        buf[77] |= (uint8_t) 0x01;
      }
       if(k == 5){  /*JK*/
-	if(_DEBUG) printf("clearing clr bit\n");
-	buf[77] &= (uint8_t) 0xfe;
+        if(_DEBUG) printf("clearing clr bit\n");
+        buf[77] &= (uint8_t) 0xfe;
       }
 //JK      if(k == 4){
 //JK      /* 2012-02-27: clr l/r tp bits */
-//JK	if(_DEBUG) printf("clearing ltp/rtp in ctrl byte\n");
-//JK	buf[1] &= (uint8_t) LRTP_OFF_MASK;    
+//JK    if(_DEBUG) printf("clearing ltp/rtp in ctrl byte\n");
+//JK    buf[1] &= (uint8_t) LRTP_OFF_MASK;
 //JK      }
 
       if (k != 3) /*JK*/
          err = dbase_write(dev, buf, sz, &written);
       else   /*JK, 4th msg is one byte*/
          err = dbase_write_one(dev, START2, &written);
-         
-      if (k == 0) 
+
+      if (k == 0)
          _stat += sz; /* Move pointer to next status_msg in _STAT */
- 
+
       if (err < 0 || written != sz)
          {
           if (written != 1) {               /*JK, 4th msg is one byte long*/
@@ -742,13 +755,13 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
              err_str("dbase_init2(), when writing status package", err);
              return err < 0 ? err : -EIO;
              }    /*JK*/
-          } 
+          }
 
        if (dbase_checkready(dev) != 0){ /*JK, digiBaseRH NULL replay after STAT msgs*/
           fprintf(stderr, "E: when sending pack%d command to device - aborting!\n", k+1);
           return -EIO;
           }
-       
+
     } /*JK -- end of for loop*/
 
   /* Finally, clear spectrum */
@@ -765,19 +778,19 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
    buf0[2] |= 0x04;
    err = dbase_write_init(dev, buf0, sizeof(buf0), &written);
 
-   if (err < 0 || written != sizeof(buf0) || dbase_checkready_init(dev) != 0x03){ 
+   if (err < 0 || written != sizeof(buf0) || dbase_checkready_init(dev) != 0x03){
       fprintf(stderr, "E: When writing check command (err=%d, written=%d)\n", err, written);
       err_str("dbase_init2(), when writing check command", err);
       return -EIO;
    }
-   
+
 
   for(k = 0; k < 2; k++) {
 
       if(k == 1){  /*JK*/
         if(_DEBUG) printf("setting CNT byte\n");
         buf[77] |= (uint8_t) 0x04;
-      } 
+      }
 
       err = dbase_write(dev, buf, sz, &written);
 
@@ -785,13 +798,13 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
          fprintf(stderr, "E: writing status package %d (2nd batch), written = %d\n", k+1, written);
          err_str("dbase_init2(), when writing status package", err);
          return err < 0 ? err : -EIO;
-      } 
+      }
 
       if (dbase_checkready(dev) != 0){ /*JK, digiBaseRH NULL replay after STAT msgs*/
          fprintf(stderr, "E: when sending pack %d (2nd batch) command to device - aborting!\n", k+1);
          return -EIO;
       }
-       
+
   }
 
 /*JK -- section to be deleted, used for development */
@@ -803,7 +816,7 @@ int dbase_init2(libusb_device_handle *dev, const char *filename){
 
   return 1;
 
- 
+
 }  /* JK, end of dbase_init2()*/
 
 
@@ -816,7 +829,7 @@ int dbase_init3(libusb_device_handle *dev){
   status_msg tmp_stat;
 
   /* JK, read status 3times. Sometimes 1-2 incomplete responses, 3rd is always complete!
-    (timeout, 16 bytes instead of 80). Increase of read timeout S_TIMEOUT does not help. 
+    (timeout, 16 bytes instead of 80). Increase of read timeout S_TIMEOUT does not help.
     TODO: find out why
   */
      for (k = 0; k < 3; k++){ /*JK*/
@@ -828,11 +841,11 @@ int dbase_init3(libusb_device_handle *dev){
   /*JK, check_msg -- do not know if it is required */
    err = dbase_write_init(dev, buf0, sizeof(buf0), &written);
 
-   if (err < 0 || written != sizeof(buf0)){ 
+   if (err < 0 || written != sizeof(buf0)){
       fprintf(stderr, "E: When writing check command (err=%d, written=%d)\n", err, written);
       err_str("dbase_init3(), when writing check command", err);
    }
- 
+
    if ( dbase_checkready_init(dev) != 3 )  /* last byte from 6 total*/
      return -1;
 
@@ -852,7 +865,7 @@ int dbase_init3(libusb_device_handle *dev){
          fprintf(stderr, "E: writing status package %d", k+1);
          err_str("dbase_init3(), when writing status package", err);
          return err < 0 ? err : -EIO;
-      } 
+      }
   }
 
 /*JK -- section to be deleted, used for development */
@@ -873,17 +886,17 @@ unsigned char* dbase_get_firmware_pack(const char* file, int n, int *len)
     return NULL;
 
   /* fw packet sizes */
-  const int const pzs[2] = { 61424, 14039 }; /*JK*/
+  const int pzs[2] = { 61424, 14039 }; /*JK*/
 
   /* Open fw file */
   FILE * fh = fopen(file, "rb");
   if(fh == NULL){
-    fprintf(stderr, 
-	    "E: dbase_get_firmware_pack() Unable to open digiBaseRH.rbf file; %s (%s)\n%s\n", /*JK*/
-	    file, 
-	    strerror(errno),
-	    "\tYou should set the right path in Makefile and recompile!"
-	    );
+    fprintf(stderr,
+            "E: dbase_get_firmware_pack() Unable to open digiBaseRH.rbf file; %s (%s)\n%s\n", /*JK*/
+            file,
+            strerror(errno),
+            "\tYou should set the right path in Makefile and recompile!"
+            );
     return NULL;
   }
 
@@ -930,9 +943,9 @@ unsigned char* dbase_get_firmware_pack(const char* file, int n, int *len)
     the device with serial number 'given_serial' will be
     returned.
 */
-libusb_device_handle* dbase_locate(int *serial, 
-				   int given_serial, 
-				   libusb_context *cntx) 
+libusb_device_handle* dbase_locate(int *serial,
+                                   int given_serial,
+                                   libusb_context *cntx)
 {
   libusb_device **list, *found = NULL;  /* temp list and device */
   ssize_t cnt = libusb_get_device_list(cntx, &list);
@@ -948,58 +961,58 @@ libusb_device_handle* dbase_locate(int *serial,
 
   /* Iterate over found usb devices until digibase is found */
   for(i = 0; i < cnt; i++)
+  {
+    libusb_device *device = list[i];
+    err = libusb_get_device_descriptor(device, &desc);
+    /* Is the device a dbase? */
+    if(err == 0 &&
+       desc.idVendor == VENDOR_ID &&
+       desc.idProduct == PROD_ID)
     {
-      libusb_device *device = list[i];
-      err = libusb_get_device_descriptor(device, &desc);
-      /* Is the device a dbase? */
-      if(err == 0 && 
-	 desc.idVendor == VENDOR_ID &&
-	 desc.idProduct == PROD_ID)
-	{
-	  if(_DEBUG > 0){
-	    printf("Device %d was digiBaseRH\n", (int)i);/*JK*/
-	    printf("Opening device for serial no aquisition\n");
-	  }
-	  /* Open libusb connection: assign handle */
-	  if((err = libusb_open(device, &handle)) < 0){
-	    fprintf(stderr, "E: dbase_get_serial() Error opening device\n");
-	    libusb_free_device_list(list, 1);
-	    return NULL;
-	  }
-	  /* Return first dbase */
-	  if(given_serial == -1){
-	    found = device;
-	    err = dbase_get_serial(found, handle, desc, serial);
-	    if(err < 0)
-	      fprintf(stderr, "W: dbase_get_serial returned %d\n", err);
-	    break;
-	  }
-	  /* Check if this dbase has the correct serial no */
-	  else{
-	    int tmp_serial = -1;
-	    err = dbase_get_serial(device, handle, desc, &tmp_serial);
-	    if(err < 0){
-	      /* bail */
-	      libusb_close(handle);
-	      libusb_free_device_list(list, 1);
-	      return NULL;
-	    }
-	    if(given_serial == tmp_serial){
-	      found = device;
-	      *serial = tmp_serial;
-	      break;
-	    }
-	  }
-	  /* 
-	     Not the correct dbase 
-	     close connection and check next device
-	  */
-	  libusb_close(handle);
-	}
-      else if(err < 0)
-	err_str("libusb_get_device_descriptor()", err);
+      if(_DEBUG > 0){
+        printf("Device %d was digiBaseRH\n", (int)i);/*JK*/
+        printf("Opening device for serial no aquisition\n");
+      }
+      /* Open libusb connection: assign handle */
+      if((err = libusb_open(device, &handle)) < 0){
+        fprintf(stderr, "E: dbase_get_serial() Error opening device\n");
+        libusb_free_device_list(list, 1);
+        return NULL;
+      }
+      /* Return first dbase */
+      if(given_serial == -1){
+        found = device;
+        err = dbase_get_serial(found, handle, desc, serial);
+        if(err < 0)
+          fprintf(stderr, "W: dbase_get_serial returned %d\n", err);
+        break;
+      }
+      /* Check if this dbase has the correct serial no */
+      else{
+        int tmp_serial = -1;
+        err = dbase_get_serial(device, handle, desc, &tmp_serial);
+        if(err < 0){
+          /* bail */
+          libusb_close(handle);
+          libusb_free_device_list(list, 1);
+          return NULL;
+        }
+        if(given_serial == tmp_serial){
+          found = device;
+          *serial = tmp_serial;
+          break;
+        }
+      }
+      /*
+         Not the correct dbase
+         close connection and check next device
+      */
+      libusb_close(handle);
     }
-  
+    else if(err < 0)
+      err_str("libusb_get_device_descriptor()", err);
+  }
+
   /* free libusb list, tell libusb to unref devices */
   libusb_free_device_list(list, 1);
   /* return dbase handle */
@@ -1007,19 +1020,19 @@ libusb_device_handle* dbase_locate(int *serial,
 }
 
 /* Returns the serial number for a located digibase */
-int dbase_get_serial(libusb_device *dev, 
-		     libusb_device_handle *handle,
-		     struct libusb_device_descriptor desc,
-		     int *serial){
+int dbase_get_serial(libusb_device *dev,
+                     libusb_device_handle *handle,
+                     struct libusb_device_descriptor desc,
+                     int *serial){
   int err;
   unsigned char str[16];
   /* Get iSerialNumber string descriptor */
   err = libusb_get_string_descriptor_ascii(
-					   handle, 
-					   desc.iSerialNumber,
-					   str,
-					   sizeof(str)
-					   );
+                                           handle,
+                                           desc.iSerialNumber,
+                                           str,
+                                           sizeof(str)
+                                           );
   /* Actually the len of str here... */
   if(err > 0){
     *serial = atoi((char*)str);
@@ -1035,17 +1048,17 @@ int dbase_get_serial(libusb_device *dev,
 }
 
 /*
-  Basic consistency check 
+  Basic consistency check
 */
 int check_detector(const detector *det, const char * func){
   if(det == NULL){
-    fprintf(stderr, "E: %s(): detector pointer was null\n", 
-	    func == NULL ? "" : func);
+    fprintf(stderr, "E: %s(): detector pointer was null\n",
+            func == NULL ? "" : func);
     return -1;
   }
   if(det->dev == NULL){
     fprintf(stderr, "E: %s(): detector->libusb_device_handle was null\n",
-	    func == NULL ? "" : func);
+            func == NULL ? "" : func);
     return -1;
   }
   return 0;
@@ -1053,8 +1066,8 @@ int check_detector(const detector *det, const char * func){
 
 /*
   getline(3) needed below isn't on MAC OS, define it here...
- 
-  This code is public domain -- Will Hartung 4/9/09 
+
+  This code is public domain -- Will Hartung 4/9/09
 */
 //#ifdef __APPLE__
 size_t my_getline(char **lineptr, size_t *n, FILE *stream) {
@@ -1086,7 +1099,7 @@ size_t my_getline(char **lineptr, size_t *n, FILE *stream) {
       size = size + 128;
       bufptr = realloc(bufptr, size);
       if (bufptr == NULL) {
-	return -1;
+        return -1;
       }
     }
     *p++ = c;
@@ -1105,103 +1118,117 @@ size_t my_getline(char **lineptr, size_t *n, FILE *stream) {
 //#endif
 
 
-/* 
-   Read in status meassage from text file 
+/*
+   Read in status meassage from text file
 */
 int parse_status_lines(status_msg *status, FILE *fh){
   size_t len = 63;
   char *line = (char *) malloc ( len + 1 );      /* Line buffer */
 
-  float tt, tt2; 
+  float tt, tt2;
   int t, t2, t3, llen, lineno=0;
 
   /* sscanf() buffer, risk of overflow in sscanf() later... */
   const int buflen = 64;
-  char str[buflen];  
+  char str[buflen];
 
-  while( (llen = my_getline(&line, &len, fh)) >= 0 && lineno < 19)
+  while( (llen = my_getline(&line, &len, fh)) >= 0 && lineno < 24)
     {
       /* Check line length against str buffer size */
       if(llen > buflen) {
-	fprintf(stderr, 
-	       "E: Risk of overflow in parse_status_lines()\n\t buflen=%d getline() read %d bytes!\n",
-		buflen, llen);
-	free(line);
-	return -1; /* bail before corrupting memory */
+        fprintf(stderr,
+               "E: Risk of overflow in parse_status_lines()\n\t buflen=%d getline() read %d bytes!\n",
+                buflen, llen);
+        free(line);
+        return -1; /* bail before corrupting memory */
       }
       switch(lineno)
-	{
-	case 4 :
-	  sscanf(line, "RTP on     : %s]", str);
-	  if(strcmp(str, "Yes") == 0)
-	    status->CTRL |= (uint8_t) RTP_MASK;
-	  else
-	    status->CTRL &= (uint8_t) RTP_OFF_MASK;
-	  if(_DEBUG) printf("Parsed RTP EN to: %s\n", str);
-	  break;
-	case 5 :
-	  sscanf(line, "LTP on     : %s]", str);
-	  if(strcmp(str, "Yes") == 0)
-	    status->CTRL |= (uint8_t) LTP_MASK;
-	  else
-	    status->CTRL &= (uint8_t) LTP_OFF_MASK;
-	  if(_DEBUG) printf("Parsed LTP EN to: %s\n", str);
-	  break;
-	case 6 :
-	  sscanf(line, "Gain stab. : %s", str);
-	  if(strcmp(str, "Yes") == 0)
-	    status->CTRL |= (uint8_t) GS_MASK;
-	  else
-	    status->CTRL &= (uint8_t) GS_OFF_MASK;
-	  if(_DEBUG) printf("Parsed GS EN to: %s\n", str);
-	  break;
-	case 7 :
-	  sscanf(line, "Zero stab. : %s", str);
-	  if(strcmp(str, "Yes") == 0)
-	    status->CTRL |= (uint8_t) ZS_MASK;
-	  else
-	    status->CTRL &= (uint8_t) ZS_OFF_MASK;
-	  if(_DEBUG) printf("Parsed ZS EN to: %s\n", str);
-	  break;
-	case 10 :
-	  sscanf(line, "HV Target  : %d V", &t);
-	  status->HVT = (int)(t / HV_FACTOR);
-	  if(_DEBUG) printf("Parsed HVT: %d -> %d\n", t, status->HVT);
-	  break;
-	case 11:
-	  sscanf(line, "Pulse width: %f us", &tt);
-	  status->PW = GET_INV_PW(tt);
-	  if(_DEBUG) printf("Parsed PW: %0.2f -> %d\n", tt, status->PW);
-	  break;
-	case 12:
-	  //sscanf(line, "Fine Gain  : %f ", &tt);
-	  //status->FGN = tt * GAIN_FACTOR;
-	  sscanf(line, "Fine Gain  : %f (set: %f)\n", &tt, &tt2);
-	  status->FGN = GET_GAIN_VALUE(tt);
-	  if(_DEBUG) printf("Parsed FG: %0.5f -> %d\n", tt, status->FGN);
-	  break;
-	case 13:
-	  sscanf(line, "Live Time Preset  : %f s", &tt);
-	  status->LTP = GET_TICKS(tt); 
-	  if(_DEBUG) printf("Parsed LTP: %0.2f -> %d\n", tt, status->LTP);
-	  break;
-	case 15:
-	  sscanf(line, "Real Time Preset  : %f s", &tt);
-	  status->RTP = GET_TICKS(tt); 
-	  if(_DEBUG) printf("Parsed RTP: %0.2f -> %d\n", tt, status->RTP);
-	  break;
-	case 17:
-	  sscanf(line, "Gain Stab. chans  : [%d %d %d]", &t, &t2, &t3);
-	  status->GSL = t; status->GSC=t2;status->GSU=t3;
-	  if(_DEBUG) printf("Parsed GAIN: %d %d %d\n", status->GSL, status->GSC, status->GSU);
-	  break;
-	case 18:
-	  sscanf(line, "Zero Stab. chans  : [%d %d %d]", &t, &t2, &t3);
-	  status->ZSL=t;status->ZSC=t2;status->ZSU=t3;
-	  if(_DEBUG) printf("Parsed GAIN: %d %d %d\n", status->ZSL, status->ZSC, status->ZSU);
-	  break;
-	default : break;
-	}
+      {
+        case 4 :
+          sscanf(line, "RTP on     : %s]", str);
+          if(strcmp(str, "Yes") == 0)
+            status->CTRL |= (uint8_t) RTP_MASK;
+          else
+            status->CTRL &= (uint8_t) RTP_OFF_MASK;
+          if(_DEBUG) printf("Parsed RTP EN to: %s\n", str);
+          break;
+        case 5 :
+          sscanf(line, "LTP on     : %s]", str);
+          if(strcmp(str, "Yes") == 0)
+            status->CTRL |= (uint8_t) LTP_MASK;
+          else
+            status->CTRL &= (uint8_t) LTP_OFF_MASK;
+          if(_DEBUG) printf("Parsed LTP EN to: %s\n", str);
+          break;
+        case 6 :
+          sscanf(line, "Gain stab. : %s", str);
+          if(strcmp(str, "Yes") == 0)
+            status->CTRL |= (uint8_t) GS_MASK;
+          else
+            status->CTRL &= (uint8_t) GS_OFF_MASK;
+          if(_DEBUG) printf("Parsed GS EN to: %s\n", str);
+          break;
+        case 7 :
+          sscanf(line, "Zero stab. : %s", str);
+          if(strcmp(str, "Yes") == 0)
+            status->CTRL |= (uint8_t) ZS_MASK;
+          else
+            status->CTRL &= (uint8_t) ZS_OFF_MASK;
+          if(_DEBUG) printf("Parsed ZS EN to: %s\n", str);
+          break;
+        case 10 :
+          sscanf(line, "Upper Discr: %d V", &t);
+          status->ULD = (int)(t);
+          if(_DEBUG) printf("Parsed ULD: %d -> %d\n", t, status->ULD);
+          break;
+        case 11 :
+          sscanf(line, "Lower Discr: %d V", &t);
+              status->LLDL = (int16_t)((t*2)<<8);
+              status->LLDH = (int16_t)((t*2)>>8);
+          if(_DEBUG) printf("Parsed LLD: %d -> %d\n", t, ((((uint)status->LLDH)<<8) + (((uint)status->LLDL)>>8))/2);
+          break;
+        case 12:
+          sscanf(line, "Pulse width: %f us", &tt);
+          status->PW = GET_INV_PW(tt);
+          if(_DEBUG) printf("Parsed PW: %0.2f -> %d\n", tt, status->PW);
+          break;
+        case 14 :
+          sscanf(line, "Actual HV  : %d v (Target: %d)", &t, &t2);
+          status->HVT = (int)(t2 / HV_FACTOR + 0.5);
+          if(_DEBUG) printf("Parsed HVT: %d -> %d\n", t2, status->HVT);
+          break;
+        case 15 :
+          sscanf(line, "Actual Gain: %f   (Initial: %f)", &tt, &tt2);
+          status->FGN = GET_GAIN_VALUE(tt2);
+          if(_DEBUG) printf("Parsed FG: %0.5f -> %d\n", tt2, status->FGN);
+          break;
+        case 16 :
+          sscanf(line, "Actual Zero: %d   (Initial: %d)", &t, &t2);
+          status->ZERO = (int)(t2/4 | 0x8000);
+          if(_DEBUG) printf("Parsed ZERO: %d -> %d\n", t2, status->ZERO);
+          break;
+        case 18:
+          sscanf(line, "Gain Stab. chans  : [%d %d %d]", &t, &t2, &t3);
+          status->GSL = t; status->GSC=t2;status->GSU=t3;
+          if(_DEBUG) printf("Parsed GAIN stab.: %d %d %d\n", status->GSL, status->GSC, status->GSU);
+          break;
+        case 19:
+          sscanf(line, "Zero Stab. chans  : [%d %d %d]", &t, &t2, &t3);
+          status->ZSL=t;status->ZSC=t2;status->ZSU=t3;
+          if(_DEBUG) printf("Parsed ZERO stab.: %d %d %d\n", status->ZSL, status->ZSC, status->ZSU);
+          break;
+        case 21:
+          sscanf(line, "Live Time Preset  : %f s", &tt);
+          status->LTP = GET_TICKS(tt);
+          if(_DEBUG) printf("Parsed LTP: %0.2f -> %d\n", tt, status->LTP);
+          break;
+        case 23:
+          sscanf(line, "Real Time Preset  : %f s", &tt);
+          status->RTP = GET_TICKS(tt);
+          if(_DEBUG) printf("Parsed RTP: %0.2f -> %d\n", tt, status->RTP);
+          break;
+        default : break;
+      }
       lineno++;
     }
 
@@ -1209,8 +1236,8 @@ int parse_status_lines(status_msg *status, FILE *fh){
   return 0;
 }
 
-/* 
-   Print libusb errors 
+/*
+   Print libusb errors
 */
 void err_str(const char* func, enum libusb_error err){
   const char* err_msg = NULL;
@@ -1269,22 +1296,23 @@ void err_str(const char* func, enum libusb_error err){
 
 /*
   Big endian conversion functions
- 
-  Swap byte order in status struct 
+
+  Swap byte order in status struct
 */
 void dbase_byte_swap_status_struct(status_msg *stat)
 {
   /* 2012-02-27, we'll swap these as well */
-  BYTESWAP(stat->TMR); 
+  BYTESWAP(stat->TMR);
   BYTESWAP(stat->AFGN);
 
   BYTESWAP(stat->FGN);
-  BYTESWAP(stat->LLD);
+  BYTESWAP(stat->LLDL);
+  BYTESWAP(stat->LLDH);
   BYTESWAP(stat->LTP);
   BYTESWAP(stat->LT);
   BYTESWAP(stat->RTP);
   BYTESWAP(stat->RT);
-  BYTESWAP(stat->LEN);
+  BYTESWAP(stat->ULD);
   BYTESWAP(stat->HVT);
   BYTESWAP(stat->GSU);
   BYTESWAP(stat->GSC);

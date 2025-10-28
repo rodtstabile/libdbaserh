@@ -1,17 +1,17 @@
 /*
- * libdbaserh.h: Public header for libdbaserh 
- * 
+ * libdbaserh.h: Public header for libdbaserh
+ *
  * Communicate with ORTEC's digiBaseRH MCB over USB
- * 
+ *
  * adapted from libdbase.h for the use with digiBaseRH
  * (2012-2014 Jan Kamenik)
- * ================================================= 
- * 
- * 
+ * =================================================
+ *
+ *
  * libdbase.h: Public header for libdbase
- * 
+ *
  * Communicate with ORTEC's digiBASE MCB over USB
- * 
+ *
  * Copyright (c) 2011, 2012 Peder Kock <peder.kock@med.lu.se>
  * Lund University
  *
@@ -47,7 +47,7 @@ extern "C" {
 #define PROD_ID         0x001f       /*JK 0x001f digiBaseRH version ID*/
 #define DBASE_LEN       1023         /* digibase channels-1 */
 
-/* 
+/*
    Status message:
    - Contains information about the digibase's settings.
    - Used when writing and reading settings to/from dbase.
@@ -58,30 +58,30 @@ extern "C" {
 typedef struct {
   /* 0x0000 - 0x000f */
   uint8_t CTRL;             /* Control byte */
-  uint8_t RDY;              /* Ready byte? (bit0: counting, bit3: ready */
+  uint8_t RDY;              /* Ready byte? (bit0: counting, bit3: ready, bit5,6: int(Actual_HV/256) */
   uint8_t PW;               /* Pulse Width (shaping time) */
   uint8_t AHV;              /* Actual High Voltage low byte */
-  uint8_t u2;               /* ux = unknown x;  TODO: probably ahv high byte (?) */ 
+  uint8_t u2;               /* ux = unknown x;  TODO: (?) */
   uint8_t ISC;              /* InSight Control byte (not used) */
   uint8_t AIO;              /* Aux0 IO bytes (not used) */
   uint8_t u3;               /* Aux1? */
-  /* 2012-02-20: 
+  /* 2012-02-20:
      u4 replaced with 2-byte timer */
   /* Bits 8-23 is a 16 Hz Timer */
   uint32_t TMR;             /* Countdown (for what?), starts when spectrum is requested */
-  uint32_t AFGN;            /* Actual fine gain */ 
+  uint32_t AFGN;            /* Actual fine gain */
 
   /* 0x0010 - 0x001f*/
-  uint32_t FGN;             /* Fine Gain */
-  uint16_t LLD;             /* Lower level discriminator */
-  uint16_t u6;
+  uint32_t FGN;             /* Initial Fine Gain */
+  uint16_t LLDL;            /* Lower level discriminator low */
+  uint16_t LLDH;            /* Lower level discriminator high */
   uint32_t LTP;             /* Live Time Preset */
   uint32_t LT;              /* Live Time */
 
   /* 0x0020 - 0x002f */
   uint32_t RTP;             /* Real Time Preset */
   uint32_t RT;              /* Real Time */
-  uint16_t LEN;             /* MCA Channels */
+  uint16_t ULD;             /* Upper Level Discriminator */
   uint16_t HVT;             /* High Voltage target */
   uint32_t u7;
 
@@ -91,19 +91,19 @@ typedef struct {
   uint16_t GSU;             /* Gain stabilization Upper channel */
   uint16_t GSC;             /* Gain stabilization Center channel */
   uint16_t GSL;             /* Gain stabilization Lower channel */
-  uint16_t u10;
+  uint16_t AZERO;              /* Actual zero */
 
   /* 0x0040 - 0x004f */
-  uint16_t u11;
+  uint16_t ZERO;             /* Initial zero */
   uint16_t ZSU;             /* Zero stabilization Upper channel */
   uint16_t ZSC;             /* Zero stabilization Center channel */
   uint16_t ZSL;             /* Zero stabilization Lower channel */
   uint8_t MSZ;              /* Memory Size (kb?) */
-  uint8_t u12;             
-  uint8_t u13; 
-  uint8_t u14;              
+  uint8_t u12;
+  uint8_t u13;
+  uint8_t u14;
   uint8_t CNT;              /* Clear counters byte (bit 1) */
-  uint8_t u15; 
+  uint8_t u15;
   uint16_t u16;
 } status_msg;
 /* #pragma pack() */
@@ -159,46 +159,46 @@ typedef struct {
      - Other functions are written in the same way, printing to
        stderr and returning neg. <errno.h> values on failure.
    */
-  
 
-  /* 
-     CTRL funtions: enable/disable settings 
+
+  /*
+     CTRL funtions: enable/disable settings
 
      Start detector,
      it will continue to measure util libdbase_stop() is called or
      real/live preset time has elapsed
   */
 int libdbase_start(detector *det);
-  /* Stop detector */ 
-int libdbase_stop(detector *det);        
+  /* Stop detector */
+int libdbase_stop(detector *det);
 
-  /* 
-     Enable gain stabilization 
+  /*
+     Enable gain stabilization
      defined in libdbase_set_gs_chans()
-  */  
-int libdbase_gs_on(detector *det);      
+  */
+int libdbase_gs_on(detector *det);
   /* Disable gain stabilization */
-int libdbase_gs_off(detector *det);    
+int libdbase_gs_off(detector *det);
 
   /*
     Enable zero stabilization
     defined in libdbase_set_zs_chans()
   */
-int libdbase_zs_on(detector *det);      
+int libdbase_zs_on(detector *det);
   /* Disable zero stabilization */
-int libdbase_zs_off(detector *det);                        
+int libdbase_zs_off(detector *det);
 
-  /* 
-     Enable high voltage 
+  /*
+     Enable high voltage
      defined by libdbase_set_hv()
   */
 int libdbase_hv_on(detector *det);
-  /* Turn of high voltage */ 
-int libdbase_hv_off(detector *det);                        
+  /* Turn of high voltage */
+int libdbase_hv_off(detector *det);
 
-  /* 
-     Settings functions: set/get values and properties 
-     
+  /*
+     Settings functions: set/get values and properties
+
      Set target high voltage (50-1200 V)
   */
 int libdbase_set_hv(detector *det, ushort hv);
@@ -216,10 +216,16 @@ int libdbase_set_zs_chans(detector *det, ushort center, ushort width);
 int libdbase_set_pw(detector *det, float pulse_width);
   /* Set fine gain (0.4-1.2) */
 int libdbase_set_fgn(detector *det, float fg);
+  /* Set zero adjust (-65534 to 65535) */
+int libdbase_set_zero(detector *det, int zero);
+  /* Set lower level discriminator (0-1023) */
+int libdbase_set_lld(detector *det, int lld);
+  /* Set upper level discriminator (0-1023) */
+int libdbase_set_uld(detector *det, int uld);
 
   /* Update spectrum buffer, read spectrum from dbase */
 int libdbase_get_spectrum(detector *det);
-  /* Update status buffer, read status from dbase */ 
+  /* Update status buffer, read status from dbase */
 int libdbase_get_status(detector *det);
   /* Wrapper for low-level dbase_write_status() */
 int libdbase_set_status(detector *det);
@@ -239,14 +245,14 @@ int libdbase_set_status(detector *det);
     set to 0.
    */
 int libdbase_read_lm_packets(detector *det,   /* the detector pointer */
-			pulse *buf,      /* pulse buffer (can be NULL) */
-			int len,         /* length of pulse buffer */
-			int *read,       /* returns the read nbr of events */
-			uint32_t *time); /* timer pointer to track internal overflow */
+                             pulse *buf,      /* pulse buffer (can be NULL) */
+                             int len,         /* length of pulse buffer */
+                             int *read,       /* returns the read nbr of events */
+                             uint32_t *time); /* timer pointer to track internal overflow */
 
-  /* 
-     Misc functions: helpers, prints etc 
-  
+  /*
+     Misc functions: helpers, prints etc
+
      Clear (and disable) live/real time presets */
 int libdbase_clear_presets(detector *det);
   /* Clear MCB spectrum */
@@ -256,57 +262,57 @@ int libdbase_clear_counters(detector *det);
   /* Clear presets, spectrum and time counters */
 int libdbase_clear_all(detector *det);
 
-  /* 
+  /*
      Print formatted status buffer (to stdout).
      These two functions actually print the
      det->status buffer, so call libdbase_get_status()
      to make sure the buffer is up to date.
-  */ 
-void libdbase_print_status(const detector *det);     
-  /* Print status (to stream) */ 
-void libdbase_print_file_status(const status_msg * status, const int serial, FILE *fh);        
+  */
+void libdbase_print_status(const detector *det);
+  /* Print status (to stream) */
+void libdbase_print_file_status(const status_msg * status, const int serial, FILE *fh);
 
-  /* 
+  /*
      All print_X_spectrum functions, except the two binary,
      prints all channels separated by space: " ".
      They actually print the det->spec or det->last_spec buffers
      so, these functions should be preceded with a call to
      libdbase_get_spectrum()
    */
-  /* Print diff spectrum (to stdout) */ 
+  /* Print diff spectrum (to stdout) */
 void libdbase_print_spectrum(const detector *det);
   /* Print diff spectrum (to stdout) */
 void libdbase_print_diff_spectrum(const detector *det);
   /* Print spectrum (to stream) */
-void libdbase_print_file_spectrum(const detector *det, FILE *fh);       
+void libdbase_print_file_spectrum(const detector *det, FILE *fh);
   /* Print spectrum (to stream) */
-void libdbase_print_diff_file_spectrum(const detector *det, FILE *fh);                       
+void libdbase_print_diff_file_spectrum(const detector *det, FILE *fh);
   /* Print binary spectrum (to stream) */
 void libdbase_print_file_spectrum_binary(const detector *det, FILE *fh);
   /* Print binary differential spectrum (to stream) */
 void libdbase_print_diff_file_spectrum_binary(const detector *det, FILE *fh);
 
-  /* 
+  /*
      Sum region and optionally, if [fh != NULL],
      print region of interest
   */
 void libdbase_print_roi(detector *det, uint start_ch, uint end_ch, uint *sum, FILE *fh);
 
-  /* 
-     Mode functions 
+  /*
+     Mode functions
 
-     Set detector in list mode 
-     
+     Set detector in list mode
+
      When you're done reading pulses in list
      mode you should call the libdbase_set_pha_mode()
      to reset the detector in default mode.
   */
-int libdbase_set_list_mode(detector *det);                          
-  /* Set detector in pha mode (default mode) */ 
-int libdbase_set_pha_mode(detector *det);                             
+int libdbase_set_list_mode(detector *det);
+  /* Set detector in pha mode (default mode) */
+int libdbase_set_pha_mode(detector *det);
 
 /*
-    Open and Close functions 
+    Open and Close functions
 */
 
 /*
@@ -319,14 +325,14 @@ int libdbase_set_pha_mode(detector *det);
 
 int libdbase_get_list(detector *** list, int *found, const char *filename);
 
-/* 
-   Close connection to each detector and free list 
-   - this function calls libdbase_close() on each 
+/*
+   Close connection to each detector and free list
+   - this function calls libdbase_close() on each
      detector* in list.
 */
 int libdbase_free_list(detector *** list);
 
-/* Find, open (usb) and create detector handle 
+/* Find, open (usb) and create detector handle
    - returns NULL if no digibase was found or an
      fatal error occurred.
      if serial is -1, a pointer to the first dbase is returned
@@ -336,13 +342,13 @@ int libdbase_free_list(detector *** list);
 detector *libdbase_init(int dbase_serial, const char *filename);
 
 /*
-  Close (usb) and release resources 
+  Close (usb) and release resources
   - returns libusb_release status
 */
 int libdbase_close(detector *det);
 
 /*
-  Iterate through libusb devices and 
+  Iterate through libusb devices and
   extract serial numbers of all (k) digibases found.
   - returns (up to len) serial numbers in serials[0..max(k-1,len-1)]
   - returns nbr of found dbases (k) or < 0 on error
@@ -357,7 +363,7 @@ int libdbase_list_serials(int *serials, int len);
      a) Custom directory *dir, or if *dir == NULL:
      b) PACK_PATH set at compile time (see Makefile), else
      c) current directory
-     
+
    A new directory (det->serial) will be created
      in the path.
 */
@@ -366,14 +372,14 @@ int libdbase_save_status_text(detector *det, const char* dir);
 
 /*
   Load status from file:
-    
+
   - status will be read from the serial-
     number directory at one of the locations
     described above in libdbase_save_status().
 
-  - allows user to (carefully!) modify status of digibase 
+  - allows user to (carefully!) modify status of digibase
     by hand in a text-editor.
-    
+
   - digibase's status will be updated if
     status is successfully loaded.
 */
@@ -387,8 +393,8 @@ int libdbase_load_status_text(detector *det, const char* dir);
   specific data.
 */
 int libdbase_get_det_path(detector *det, char *path, ssize_t len);
- 
-/* 
+
+/*
    libdbase root path (see Makefile)
 */
 int libdbase_get_path(char *path, ssize_t len);

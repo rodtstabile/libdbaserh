@@ -1,13 +1,13 @@
 /*
  * libdbaserh.c: Library to communicate with ORTEC's digiBaseRH over USB
- * 
+ *
  * adapted from libdbase.c for the use with digiBaseRH
  * (2012-2014 Jan Kamenik)
- * ================================================= 
- * 
- * 
+ * =================================================
+ *
+ *
  * libdbase.c: Library to communicate with ORTEC's digiBASE over USB
- * 
+ *
  * Copyright (c) 2011, 2012 Peder Kock <peder.kock@med.lu.se>
  * Lund University
  *
@@ -18,7 +18,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details. 
+ * GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -37,12 +37,12 @@
   Endianess
 */
 int big_endian_test = 1;
-/* 
-   The libusb context 
+/*
+   The libusb context
 */
 libusb_context *cntx = NULL;
-/* 
-   Number of initialized dbases 
+/*
+   Number of initialized dbases
 */
 int detectors = 0;
 
@@ -54,7 +54,7 @@ int detectors = 0;
 int libdbase_get_list(detector *** list, int *found, const char *filename) {
   /* Allow up to 32 dbases, should be 'nuf */
   int LEN = 32, serials[LEN], k;
-    
+
   /* Get all dbase(s) serial numbers */
   *found = libdbase_list_serials(serials, LEN);
   if(_DEBUG)
@@ -69,10 +69,10 @@ int libdbase_get_list(detector *** list, int *found, const char *filename) {
 
   /* allocate dbase handles list */
   list[0] = (detector**) malloc ((*found+1) * sizeof(detector*));
-  if(*list == NULL) { 
-    fprintf(stderr, 
-	    "E: libdbase_get_list(): Out of memory when allocating *det-list\n\tfound was %d\n", 
-	    *found); 
+  if(*list == NULL) {
+    fprintf(stderr,
+            "E: libdbase_get_list(): Out of memory when allocating *det-list\n\tfound was %d\n",
+            *found);
     return -ENOMEM;
   }
   /* null-terminate list */
@@ -82,8 +82,8 @@ int libdbase_get_list(detector *** list, int *found, const char *filename) {
   for(k=0; k < *found; k++){
     /* each detector* is allocated within libdbase_init() */
     if( (list[0][k] = libdbase_init(serials[k], filename)) == NULL){
-      printf("E: libdbase_list_init() when opening detector %d with serial %d\n", 
-	     k+1, serials[k]);
+      printf("E: libdbase_list_init() when opening detector %d with serial %d\n",
+             k+1, serials[k]);
       return -1;
     }
     else if(_DEBUG)
@@ -92,16 +92,16 @@ int libdbase_get_list(detector *** list, int *found, const char *filename) {
   return 0;
 }
 
-/* 
-   Close connection to each detector and free list 
-   - this function calls libdbase_close() on each 
+/*
+   Close connection to each detector and free list
+   - this function calls libdbase_close() on each
      detector* in list.
 */
 int libdbase_free_list(detector *** list){
   if(list == NULL || list[0] == NULL)
     return -1;
   int k=0, err=0;
-  
+
   /* Iterate over whole detector-list */
   while( list[0][k] != NULL ) {
     /* each detector pointer is freed here... */
@@ -117,16 +117,16 @@ int libdbase_free_list(detector *** list){
 }
 
 
-/* 
-   Initialize usb device and, 
-   if found, initialize first detector 
+/*
+   Initialize usb device and,
+   if found, initialize first detector
 */
 detector* libdbase_init(int dbase_serial, const char *filename){
-  
+
   /* (lib)usb device handle */
   struct libusb_device_handle *dev_handle;
   int err, serial = -1;
-  
+
   /* Initialize usb */
   if(cntx == NULL){
     err = libusb_init(&cntx);
@@ -141,22 +141,22 @@ detector* libdbase_init(int dbase_serial, const char *filename){
   /* Locate digiBASE */
   if(_DEBUG > 0){
     printf("Locating %s digiBaseRH (%d) on usb bus\n", /*JK*/
-	   dbase_serial == -1 ? "first" : "", dbase_serial);
+           dbase_serial == -1 ? "first" : "", dbase_serial);
   }
   dev_handle = dbase_locate(&serial, dbase_serial, cntx);
   if(dev_handle == NULL){
     fprintf(stderr, "E: libdbase_init() Unable to find and open digiBaseRH\n");/*JK*/
     return NULL;
   }
-  
+
   /* Allocate the detector struct */
   detector *det = (detector *) malloc( sizeof(detector) );
   if(det == NULL){
     fprintf(stderr, "E: Unable to allocate memory for detector struct\n");
     return NULL;
   }
-  
-  /* Assign serial number...*/ 
+
+  /* Assign serial number...*/
   if(serial > -1) {
     det->serial = serial;
     if(_DEBUG > 0)
@@ -164,7 +164,7 @@ detector* libdbase_init(int dbase_serial, const char *filename){
   }
   /* ...and libusb device_handle */
   det->dev = dev_handle;
-  
+
   /* Set configuration and claim interface with OS */
   if( (err = libusb_set_configuration(dev_handle, 1)) < 0){
     err_str("libusb_set_configuration()", err);
@@ -178,7 +178,7 @@ detector* libdbase_init(int dbase_serial, const char *filename){
     err_str("libusb_set_interface_alt_setting()", err);
     return NULL;
   }
-  
+
   /* Initialize dbase */
   if( (err = dbase_init(dev_handle, filename)) > -1){
     /* Assign status struct */
@@ -201,26 +201,26 @@ detector* libdbase_init(int dbase_serial, const char *filename){
   detectors++;
   if(_DEBUG > 0)
     printf("Open: detectors in libdbase: %d\n", detectors);
-  
+
   /* All is fine, return detector pointer */
   return det;
 }
 
-/* 
-   Release resources used by detector struct 
+/*
+   Release resources used by detector struct
    and close underlying libusb connection
 */
 int libdbase_close(detector *det){
-  if( check_detector(det, "libdbase_close()") < 0) 
+  if( check_detector(det, "libdbase_close()") < 0)
     return -1;
-  
+
   /* Release interface */
   int close_status = libusb_release_interface(det->dev, 0);
-  if(_DEBUG > 0) 
+  if(_DEBUG > 0)
     fprintf(stderr, "freeing det...");
   if(close_status < 0)
-    err_str("\nlibdbase_close()", close_status);  
-  
+    err_str("\nlibdbase_close()", close_status);
+
   /* Close libusb handle */
   libusb_close(det->dev);
   /* Remove the detector */
@@ -233,13 +233,14 @@ int libdbase_close(detector *det){
     if(_DEBUG > 0)
       printf("Last detector closed, calling libusb_exit()\n");
     libusb_exit(cntx);
+    cntx = NULL;
   }
-  
+
   /* Free detector struct */
   free(det); det = NULL;
-  if(_DEBUG > 0) 
+  if(_DEBUG > 0)
     printf("...done\n");
-  
+
   /* Return libusb's release status */
   return close_status;
 }
@@ -327,7 +328,7 @@ int libdbase_zs_on(detector *det){
     printf("\nTurning ZS on: CTRL=0x%02x\n", (unsigned char)det->status.CTRL);
 
   /* Write changes to device */
-  return dbase_write_status(det->dev, &det->status);  
+  return dbase_write_status(det->dev, &det->status);
 }
 
 /*
@@ -343,7 +344,7 @@ int libdbase_zs_off(detector *det){
     printf("\nTurning ZS off: CTRL=0x%02x\n", (unsigned char)det->status.CTRL);
 
   /* Write changes to device */
-  return dbase_write_status(det->dev, &det->status);  
+  return dbase_write_status(det->dev, &det->status);
 }
 
 /*
@@ -352,8 +353,8 @@ int libdbase_zs_off(detector *det){
 */
 int libdbase_hv_on(detector *det){
   if( check_detector(det, "libdbase_hv_on") < 0) return -1;
-  if(det->status.HVT > (uint16_t) MAX_HV){
-    printf("E: hv setting (%d) exceeds maximum (%d)", det->status.HVT, MAX_HV);
+  if(det->status.HVT * HV_FACTOR > (uint16_t) MAX_HV){
+    printf("E: hv setting (%f) exceeds maximum (%d)", det->status.HVT * HV_FACTOR, MAX_HV);
     return -1;
   }
 
@@ -364,15 +365,15 @@ int libdbase_hv_on(detector *det){
     printf("\nTurning HV on: CTRL=0x%02x\n", (unsigned char)det->status.CTRL);
 
   /* Write changes to device */
-  return dbase_write_status(det->dev, &det->status);  
+  return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Turn High Voltage off 
+/*
+   Turn High Voltage off
 */
 int libdbase_hv_off(detector *det){
   if( check_detector(det, "libdbase_hv_off") < 0) return -1;
-  
+
   /* Clear hv bit */
   det->status.CTRL &= (uint8_t) HV_OFF_MASK;
 
@@ -386,7 +387,7 @@ int libdbase_hv_off(detector *det){
 /*
   Settings Functions:
 
-  Set high voltage, argument given in volts (V) 
+  Set high voltage, argument given in volts (V)
 */
 int libdbase_set_hv(detector *det, ushort hv){
   if( check_detector(det, "libdbase_set_hv") < 0) return -1;
@@ -394,9 +395,13 @@ int libdbase_set_hv(detector *det, ushort hv){
     fprintf(stderr, "E: given high voltage (%hu) exceeds maximum (%d)\n", hv, MAX_HV);
     return -1;
   }
+  if( hv < (ushort) MIN_HV ){
+    fprintf(stderr, "E: given high voltage (%hu) below minimum (%d)\n", hv, MIN_HV);
+    return -1;
+  }
 
   /* set high voltage */
-  det->status.HVT = (uint16_t) (hv / HV_FACTOR);
+  det->status.HVT = (uint16_t) (hv / HV_FACTOR + 0.5);
 
   if(_DEBUG > 0)
     printf("\nHigh voltage target set: %d V\n", (int) (det->status.HVT * HV_FACTOR));
@@ -404,14 +409,14 @@ int libdbase_set_hv(detector *det, ushort hv){
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Set Real time preset, argument given in seconds (s) 
+/*
+   Set Real time preset, argument given in seconds (s)
 */
 int libdbase_set_rtp(detector *det, double real_time_preset){
   if( check_detector(det, "libdbase_set_rtp") < 0) return -1;
   if( real_time_preset < 0.0){
-    fprintf(stderr, "E: real_time_preset must be a positive number (was %f)\n", 
-	    real_time_preset);
+    fprintf(stderr, "E: real_time_preset must be a positive number (was %f)\n",
+            real_time_preset);
     return -1;
   }
   /* set real time ticks */
@@ -420,20 +425,20 @@ int libdbase_set_rtp(detector *det, double real_time_preset){
   det->status.CTRL |= (uint8_t) RTP_MASK;
 
   if(_DEBUG > 0) {
-    printf("\nReal time preset set: %d (ticks) %0.2f (s)\n", 
-	   det->status.RTP, real_time_preset);
+    printf("\nReal time preset set: %d (ticks) %0.2f (s)\n",
+           det->status.RTP, real_time_preset);
   }
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Set Live time preset, argument given in seconds (s) 
+/*
+   Set Live time preset, argument given in seconds (s)
 */
 int libdbase_set_ltp(detector *det, double live_time_preset) {
   if( check_detector(det, "libdbase_set_ltp") < 0) return -1;
   if( live_time_preset < 0.0){
-    fprintf(stderr, "E: live_time_preset must be a positive number (was %f)\n", 
-	    live_time_preset);
+    fprintf(stderr, "E: live_time_preset must be a positive number (was %f)\n",
+            live_time_preset);
     return -1;
   }
   /* set live time ticks */
@@ -442,19 +447,19 @@ int libdbase_set_ltp(detector *det, double live_time_preset) {
   det->status.CTRL |= (uint8_t) LTP_MASK;
 
   if(_DEBUG > 0)
-    printf("\nLive time preset set: %d (ticks) %0.2f (s)\n", 
-	   det->status.LTP, live_time_preset);
+    printf("\nLive time preset set: %d (ticks) %0.2f (s)\n",
+           det->status.LTP, live_time_preset);
 
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Disable live time preset 
+/*
+   Disable live time preset
 */
 int libdbase_set_ltp_off(detector *det) {
-  if( check_detector(det, "libdbase_set_ltp_off") < 0) 
+  if( check_detector(det, "libdbase_set_ltp_off") < 0)
     return -1;
-  if(_DEBUG > 0) 
+  if(_DEBUG > 0)
     printf("\nLTP disabled\n");
 
   /* clear ltp bit */
@@ -463,13 +468,13 @@ int libdbase_set_ltp_off(detector *det) {
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Disable real time preset 
+/*
+   Disable real time preset
 */
 int libdbase_set_rtp_off(detector *det) {
- if( check_detector(det, "libdbase_set_rtp_off") < 0) 
+ if( check_detector(det, "libdbase_set_rtp_off") < 0)
    return -1;
-  if(_DEBUG > 0) 
+  if(_DEBUG > 0)
     printf("\nRTP disabled\n");
 
   /* clear rtp bit */
@@ -479,7 +484,7 @@ int libdbase_set_rtp_off(detector *det) {
 }
 
 /*
-  Clear real/live time presets 
+  Clear real/live time presets
 */
 int libdbase_clear_presets(detector *det){
   if( check_detector(det, "libdbase_clear_presets") < 0) return -1;
@@ -497,8 +502,8 @@ int libdbase_clear_presets(detector *det){
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Clear real/live time counters 
+/*
+   Clear real/live time counters
    - counter times are clear by toggling
      CNT byte (low bit)
 */
@@ -521,7 +526,7 @@ int libdbase_clear_counters(detector *det){
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
+/*
    Clear presets, counters and spectrum
 */
 int libdbase_clear_all(detector *det){
@@ -541,78 +546,75 @@ int libdbase_clear_all(detector *det){
 }
 
 
-/* 
-   Set gain stabilization channels 
+/*
+   Set gain stabilization channels
 */
 int libdbase_set_gs_chans(detector *det, ushort center, ushort width){
   if( check_detector(det, "libdbase_set_gs_chans") < 0) return -1;
-  if(0 == center || center > det->status.LEN || 
-    width == 0 || width > det->status.LEN)
+  if(center < 1 || center >= DBASE_LEN ||
+    width < 2 || width > DBASE_LEN + 1)
   {
-      fprintf(stderr, 
-	      "E: unable to set gain stab. channels to: [%d, %d, %d]\n",
-	      center - width/2,
-	      center,
-	      center + width/2);
+      fprintf(stderr,
+              "E: unable to set gain stab. channel %d width %d\n",
+              center, width);
       return -1;
   }
-  det->status.GSL = (uint16_t) (center - width/2);
+  det->status.GSL = (uint16_t) (center - width/2 > 0 ? center - width/2 : 0);
   det->status.GSC = (uint16_t)  center;
-  det->status.GSU = (uint16_t) (center + width/2);
+  det->status.GSU = (uint16_t) (center + width/2 < 1024 ? center + width/2 : 1023);
   if(_DEBUG > 0)
-    printf("\nGain stab. roi set to: [%hu %hu %hu]\n", 
+    printf("\nGain stab. roi set to: [%hu %hu %hu]\n",
          det->status.GSL,
          det->status.GSC,
-         det->status.GSU); 
+         det->status.GSU);
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Set zero stabilization channels 
+/*
+   Set zero stabilization channels
 */
 int libdbase_set_zs_chans(detector *det, ushort center, ushort width){
   if( check_detector(det, "libdbase_zs_chans") < 0) return -1;
-  if(center == 0 || center > det->status.LEN || 
-    width == 0 || width > det->status.LEN)
+  if(center < 1 || center >= DBASE_LEN ||
+    width < 2 || width > DBASE_LEN + 1)
   {
-      fprintf(stderr, 
-	      "E: unable to set zero stab. channels to: [%hu, %hu, %hu]\n",
-	      center - width/2,
-	      center,
-	      center + width/2);
+      fprintf(stderr,
+              "E: unable to set zero stab. channel %d width %d\n",
+              center,
+        width);
       return -1;
   }
-  det->status.ZSL = (uint16_t) (center - width/2);
+  det->status.ZSL = (uint16_t) (center - width/2 > 0 ? center - width/2 : 0);
   det->status.ZSC = (uint16_t)  center;
-  det->status.ZSU = (uint16_t) (center + width/2);
+  det->status.ZSU = (uint16_t) (center + width/2 < 1024 ? center + width/2 : 1023);
   if(_DEBUG > 0)
-    printf("\nZero stab. roi set to: [%hu %hu %hu]\n", 
-	   det->status.ZSL,
-	   det->status.ZSC,
-	   det->status.ZSU); 
+    printf("\nZero stab. roi set to: [%hu %hu %hu]\n",
+           det->status.ZSL,
+           det->status.ZSC,
+           det->status.ZSU);
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Set pulse width (shaping time), argument given in micro seconds (us) 
+/*
+   Set pulse width (shaping time), argument given in micro seconds (us)
 */
 int libdbase_set_pw(detector *det, float pulse_width){
   if( check_detector(det, "libdbase_set_pw") < 0) return -1;
   if(pulse_width < 0.75f || pulse_width > 2.0f)
   {
-      fprintf(stderr, 
-	      "E: pulse width out of range: %0.1f, should be in range: 0.75-2.0\n", 
-	      pulse_width);
+      fprintf(stderr,
+              "E: pulse width out of range: %0.1f, should be in range: 0.75-2.0\n",
+              pulse_width);
       return -1;
   }
   det->status.PW = (uint8_t) (GET_INV_PW(pulse_width));
   if(_DEBUG > 0)
-    printf("\nPulse width set to: %d\n", (unsigned char) det->status.PW); 
+    printf("\nPulse width set to: %d\n", (unsigned char) det->status.PW);
   return dbase_write_status(det->dev, &det->status);
 }
 
-/* 
-   Set fine gain 
+/*
+   Set fine gain
 */
 int libdbase_set_fgn(detector *det, float fg){
   if( check_detector(det, "libdbase_set_fgn") < 0) return -1;
@@ -620,7 +622,7 @@ int libdbase_set_fgn(detector *det, float fg){
     fprintf(stderr, "E: fine gain out of range: %0.1f, should be in range: 0.4 < x < 1.2\n", fg);
     return -1;
   }
-  /* 
+  /*
      There is an gain factor when setting the gain,
      see GET_GAIN_VALUE macro in libdbasei.h
   */
@@ -636,16 +638,71 @@ int libdbase_set_fgn(detector *det, float fg){
   /*
   int err;
   if( err > 0 && ABS(det->status.AFGN - det->status.FGN) > 100) {
-    fprintf(stderr, "E: unable to set fine gain to %.5f diff=%d\n", fg, 
-	    ABS(det->status.AFGN - det->status.FGN));
+    fprintf(stderr, "E: unable to set fine gain to %.5f diff=%d\n", fg,
+            ABS(det->status.AFGN - det->status.FGN));
     err = -1;
   }
   return err;*/
 }
 
 /*
+  Set zero adjust
+*/
+int libdbase_set_zero(detector *det, int zero){
+  if( check_detector(det, "libdbase_set_zero") < 0) return -1;
+  if( zero < -65534 || zero > 65535 ){
+    fprintf(stderr, "E: given zero adjust value (%d) is out of range (-65534 to 65535)\n", zero);
+    return -1;
+  }
+
+  /* set zero adjust */
+  det->status.ZERO = (int16_t)(zero / 4 | 0x8000);
+  if(_DEBUG > 0)
+    printf("\nZero adjust set: %d 0x%08x\n", (int16_t) (det->status.ZERO), (det->status.ZERO));
+
+  return dbase_write_status(det->dev, &det->status);
+}
+
+/*
+  Set lower level discriminator
+*/
+int libdbase_set_lld(detector *det, int lld){
+  if( check_detector(det, "libdbase_set_lld") < 0) return -1;
+  if( lld < 0 || lld > 1023 ){
+    fprintf(stderr, "E: given lower level discriminator value (%d) is out of range (0 to 1023)\n", lld);
+    return -1;
+  }
+
+  /* set lower level discriminator */
+  det->status.LLDL = (int16_t)((lld*2)<<8);
+  det->status.LLDH = (int16_t)((lld*2)>>8);
+  if(_DEBUG > 0)
+    printf("\nLower level discriminator set: %d\n", (int) (lld));
+
+  return dbase_write_status(det->dev, &det->status);
+}
+
+/*
+  Set lower level discriminator
+*/
+int libdbase_set_uld(detector *det, int uld){
+  if( check_detector(det, "libdbase_set_uld") < 0) return -1;
+  if( uld < 0 || uld > 1023 ){
+    fprintf(stderr, "E: given upper level discriminator value (%d) is out of range (0 to 1023)\n", uld);
+    return -1;
+  }
+
+  /* set lower level discriminator */
+  det->status.ULD = (int16_t)uld;
+  if(_DEBUG > 0)
+    printf("\nUpper level discriminator set: %d\n", (int) (uld));
+
+  return dbase_write_status(det->dev, &det->status);
+}
+
+/*
   Read one spectrum from digiBASE:
-  - spectrum is stored at det->spec 
+  - spectrum is stored at det->spec
   - differential spectrum at det->last_spec
 */
 int libdbase_get_spectrum(detector *det){
@@ -671,9 +728,9 @@ int libdbase_clear_spectrum(detector *det){
   Print spectrum to stdout (wrapper)
 */
 void libdbase_print_spectrum(const detector *det){
-  if( check_detector(det, "libdbase_print_spectrum") < 0) 
+  if( check_detector(det, "libdbase_print_spectrum") < 0)
     return;
-  dbase_print_spectrum_file(det->spec, det->status.LEN+1, stdout);
+  dbase_print_spectrum_file(det->spec, DBASE_LEN+1, stdout);
 }
 
 /*
@@ -682,7 +739,7 @@ void libdbase_print_spectrum(const detector *det){
 void libdbase_print_diff_spectrum(const detector *det){
   if( check_detector(det, "libdbase_print_diff_spectrum") < 0)
     return;
-  dbase_print_spectrum_file(det->last_spec, det->status.LEN+1, stdout);
+  dbase_print_spectrum_file(det->last_spec, DBASE_LEN+1, stdout);
 }
 
 /*
@@ -691,7 +748,7 @@ void libdbase_print_diff_spectrum(const detector *det){
 void libdbase_print_file_spectrum(const detector *det, FILE *fh) {
   if( check_detector(det, "libdbase_print_file_spectrum") < 0)
     return;
-  dbase_print_spectrum_file(det->spec, det->status.LEN+1, fh);
+  dbase_print_spectrum_file(det->spec, DBASE_LEN+1, fh);
 }
 
 /*
@@ -700,11 +757,11 @@ void libdbase_print_file_spectrum(const detector *det, FILE *fh) {
 void libdbase_print_diff_file_spectrum(const detector *det, FILE *fh){
   if( check_detector(det, "libdbase_print_diff_file_spectrum") < 0)
     return;
-  dbase_print_spectrum_file(det->last_spec, det->status.LEN+1, fh);
+  dbase_print_spectrum_file(det->last_spec, DBASE_LEN+1, fh);
 }
 
 /*
-   Print binary spectrum to FILE 
+   Print binary spectrum to FILE
 */
 void libdbase_print_file_spectrum_binary(const detector *det, FILE *fh){
   if( check_detector(det, "libdbase_print_file_spectrum_binary") < 0)
@@ -726,12 +783,12 @@ void libdbase_print_diff_file_spectrum_binary(const detector *det, FILE *fh){
   - if *fh is NULL only sum is calculated
 */
 void libdbase_print_roi(detector *det, uint start_ch, uint end_ch, uint *sum, FILE *fh){
-  if(check_detector(det, "libdbase_print_roi") < 0 
-     || start_ch > end_ch 
-     || end_ch > det->status.LEN) {
+  if(check_detector(det, "libdbase_print_roi") < 0
+     || start_ch > end_ch
+     || end_ch > DBASE_LEN) {
     if(start_ch > end_ch)
       fprintf(stderr, "E: libdbase_print_roi() start_ch > end_ch\n");
-    else if(end_ch > det->status.LEN)
+    else if(end_ch > DBASE_LEN)
       fprintf(stderr, "E: libdbase_print_roi() end_ch out of range\n");
     else
       fprintf(stderr, "E: libdbase_print_roi() det is NULL pointer\n");
@@ -751,7 +808,7 @@ void libdbase_print_roi(detector *det, uint start_ch, uint end_ch, uint *sum, FI
   }
   /* (and) sum roi */
   for(k = start_ch; k < end_ch; k++)
-    sum[0] += det->spec[k];     
+    sum[0] += det->spec[k];
 }
 
 /*
@@ -771,8 +828,8 @@ int libdbase_set_status(detector *det) {
 
 /*
   MISC FUNTIONS:
-*/  
-/* 
+*/
+/*
    Print current status to stdout (wrapper)
 */
 void libdbase_print_status(const detector *det){
@@ -781,8 +838,8 @@ void libdbase_print_status(const detector *det){
   libdbase_print_file_status(&det->status, det->serial, stdout);
 }
 
-/* 
-   Print current status to file 
+/*
+   Print current status to file
 */
 void libdbase_print_file_status(const status_msg * status, const int serial, FILE *fh){
   if(fh == NULL){
@@ -793,12 +850,12 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
     fprintf(stderr, "E: libbdase_printf_file_status(), *status was null\n");
     return;
   }
-  /* 
+  /*
      2012-02-14
      _should_ be more efficient to print the whole char array
      at once. Construct char array using safe sprintf first.
   */
-  const size_t len = 512;
+  const size_t len = 768;
   int w = 0;
   char buf[(int)len];
 
@@ -815,25 +872,32 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
   w += snprintf(buf+w, len-w, "Zero stab. : %s\n\n", (status->CTRL & ZS_MASK) > 0 ? "Yes" : "No");
 
   /* General settings */
-  w += snprintf(buf+w, len-w, "MCB Chans. : %d\n", status->LEN + 1);
-  w += snprintf(buf+w, len-w, "HV Target  : %d V\n", (int)(status->HVT * HV_FACTOR));
-  w += snprintf(buf+w, len-w, "Pulse width: %.2f us\n", GET_PW(status->PW));
-  //w += snprintf(buf+w, len-w, "Fine Gain  : %.5f\n", GET_INV_GAIN_VALUE(status->FGN)); 
-  w += snprintf(buf+w, len-w, "Fine Gain  : %.5f (set: %.5f)\n", 
-		GET_INV_GAIN_VALUE(status->AFGN),
-		GET_INV_GAIN_VALUE(status->FGN));
+  w += snprintf(buf+w, len-w, "MCB Chans. : %d\n", DBASE_LEN);
+  w += snprintf(buf+w, len-w, "Upper Discr: %d\n", (int)(status->ULD ));
+  w += snprintf(buf+w, len-w, "Lower Discr: %d\n", ((((uint)status->LLDH)<<8) + (((uint)status->LLDL)>>8))/2);
+  w += snprintf(buf+w, len-w, "Pulse width: %.2f us\n\n", GET_PW(status->PW));
+
+  w += snprintf(buf+w, len-w, "Actual HV  :   %4.2f v (Target:    %4.2f)\n",
+    ((((status->RDY & 0x60)>>5) *256 + status->AHV ) * HV_FACTOR),
+    (status->HVT * HV_FACTOR));
+  w += snprintf(buf+w, len-w, "Actual Gain:  %.3f   (Initial:  %.3f)\n",
+                GET_INV_GAIN_VALUE(status->AFGN),
+                GET_INV_GAIN_VALUE(status->FGN));
+  w += snprintf(buf+w, len-w, "Actual Zero: % 6d   (Initial: % 6d)\n\n",
+    ((int32_t)(int16_t)(status->AZERO | ((status->AZERO & 0x4000)<<1)))*4,
+    ((int32_t)(int16_t)(status->ZERO))*4);
+  w += snprintf(buf+w, len-w, "Gain Stab. chans  : [%hu %hu %hu]\n",
+                status->GSL,
+                status->GSC,
+                status->GSU);
+  w += snprintf(buf+w, len-w, "Zero Stab. chans  : [%hu %hu %hu]\n\n",
+                status->ZSL,
+                status->ZSC,
+                status->ZSU);
   w += snprintf(buf+w, len-w, "Live Time Preset  : %.2f s\n", status->LTP * TICKSTOSEC);
   w += snprintf(buf+w, len-w, "Live Time         : %.2f s\n", status->LT * TICKSTOSEC);
   w += snprintf(buf+w, len-w, "Real Time Preset  : %.2f s\n", status->RTP * TICKSTOSEC);
   w += snprintf(buf+w, len-w, "Real Time         : %.2f s\n", status->RT * TICKSTOSEC);
-  w += snprintf(buf+w, len-w, "Gain Stab. chans  : [%hu %hu %hu]\n",
-		status->GSL,
-		status->GSC,
-		status->GSU);
-  w += snprintf(buf+w, len-w, "Zero Stab. chans  : [%hu %hu %hu]\n",
-		status->ZSL,
-		status->ZSC,
-		status->ZSU);
   w += snprintf(buf+w, len-w, "============================\n");
 
   /* Print buffer to file handle */
@@ -842,6 +906,7 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
   if(_DEBUG)
     fprintf(fh, "Total of %d chars, buffer was %d \n", w, (int)len);
 
+  dbase_print_msg((unsigned char*)status, sizeof(status_msg));
   /* old code, calling fprintf several times */
   /*fprintf(fh, "======== MCB STATUS (%d) =======\n", det->serial);
   fprintf(fh,"Running    : %s\n", (det->status.CTRL & ON_MASK) > 0 ? "Yes" : "No");
@@ -880,11 +945,11 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
       fprintf(stderr, "E: libdbase_save_status(), serial no. not set\n");
     return -1;
   }
-  
+
   status_msg tmp;
   if( check_status_sanity(det->status, &tmp) < 0 ){
     fprintf(stderr,
-	    "E: libdbase_save_status() status is corrupt - aborting\n");
+            "E: libdbase_save_status() status is corrupt - aborting\n");
     return -1;
   }
 
@@ -896,23 +961,23 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
       return -1;
     }
 
-    err = mkdir(path, 
-		S_IRUSR | S_IWUSR | S_IXUSR |  // 7
-		S_IRGRP | S_IWGRP | S_IXGRP |  // 5
-		S_IROTH | S_IXOTH              // 5
-		);
+    err = mkdir(path,
+                S_IRUSR | S_IWUSR | S_IXUSR |  // 7
+                S_IRGRP | S_IWGRP | S_IXGRP |  // 5
+                S_IROTH | S_IXOTH              // 5
+                );
     if(err != 0 && errno != EEXIST){
-      fprintf(stderr, 
-	      "E: libdbase_save_status() Unable to create directory: %s (err=%d)\n", 
-	      path, 
-	      errno);
+      fprintf(stderr,
+              "E: libdbase_save_status() Unable to create directory: %s (err=%d)\n",
+              path,
+              errno);
       return -1;
     }
     if(_DEBUG > 0){
       if(errno != EEXIST)
-	printf("Created directoy: %s\nstatus code mkdir: %d\n", path, err);
+        printf("Created directoy: %s\nstatus code mkdir: %d\n", path, err);
       else
-	printf("Using existing directory %s\n", path);
+        printf("Using existing directory %s\n", path);
     }
   }
   char file[MAX_PATH_LEN];
@@ -928,8 +993,8 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
   fclose(fh);
   if(err < 0){
     fprintf(stderr,
-	    "E: libdbase_save_status() Error when writing status to file %s\n", 
-	    file);
+            "E: libdbase_save_status() Error when writing status to file %s\n",
+            file);
   }
   return 0;
 }*/
@@ -939,7 +1004,7 @@ void libdbase_print_file_status(const status_msg * status, const int serial, FIL
 */
 int libdbase_save_status_text(detector *det, const char* dir){
    /* Write path string */
-  char path[MAX_PATH_LEN - 10];
+  char path[MAX_PATH_LEN - 32];
 
   /* Check detector pointer and serial (int) */
   if( check_detector(det, "libdbase_save_status_text") < 0 || !det->serial){
@@ -947,7 +1012,7 @@ int libdbase_save_status_text(detector *det, const char* dir){
       fprintf(stderr, "E: libdbase_save_status_text(), serial no. not set\n");
     return -1;
   }
-  
+
   status_msg tmp;
   /* Check sanity of status struct (cannot be in listmode etc.) */
   if( check_status_sanity(det->status, &tmp) < 0 ){
@@ -960,7 +1025,7 @@ int libdbase_save_status_text(detector *det, const char* dir){
     snprintf(path, sizeof(path), "%s/%d", dir, det->serial);
   else {
     int err;
-    /* 
+    /*
        Save struct at compile-time defined path,
        fall back on curr dir if none was given
     */
@@ -970,24 +1035,24 @@ int libdbase_save_status_text(detector *det, const char* dir){
     }
 
     /* Create directory if it doesn't exist */
-    err = mkdir(path, 
-		S_IRUSR | S_IWUSR | S_IXUSR |  /* User perm,   7 */
-		S_IRGRP | S_IWGRP | S_IXGRP |  /* Group perm,  7 */
-		S_IROTH | S_IXOTH              /* Others perm, 5 */
-		);
+    err = mkdir(path,
+                S_IRUSR | S_IWUSR | S_IXUSR |  /* User perm,   7 */
+                S_IRGRP | S_IWGRP | S_IXGRP |  /* Group perm,  7 */
+                S_IROTH | S_IXOTH              /* Others perm, 5 */
+                );
     /* Ignore EEXIST error */
     if(err != 0 && errno != EEXIST){
-      fprintf(stderr, 
-	      "E: libdbase_save_status_text() Unable to create directory: %s (err=%d)\n", 
-	      path, 
-	      errno);
+      fprintf(stderr,
+              "E: libdbase_save_status_text() Unable to create directory: %s (err=%d)\n",
+              path,
+              errno);
       return -1;
     }
     if(_DEBUG > 0){
       if(errno != EEXIST)
-	printf("Created directoy: %s\nstatus code mkdir: %d\n", path, err);
+        printf("Created directoy: %s\nstatus code mkdir: %d\n", path, err);
       else
-	printf("Using existing directory %s\n", path);
+        printf("Using existing directory %s\n", path);
     }
   }
   /* Create status file */
@@ -1030,7 +1095,7 @@ int libdbase_load_status(detector *det, const char *dir){
       return -1;
     }
   }
-  
+
   char file[MAX_PATH_LEN];
   snprintf(file, sizeof(file), "%s/status", path);
 
@@ -1040,18 +1105,18 @@ int libdbase_load_status(detector *det, const char *dir){
   FILE *fh = fopen(file, "rb");
   if(fh == NULL){
     fprintf(stderr,
-	    "E: libdbase_load_status() Unable to open status file %s\n", 
-	    file);
+            "E: libdbase_load_status() Unable to open status file %s\n",
+            file);
     return -1;
   }
-  
+
   status_msg buf;
   err = fread((unsigned char*)&buf, 1, sizeof(status_msg), fh);
   fclose(fh);
   if(err != sizeof(status_msg)){
     fprintf(stderr,
-	    "E: Unable to read status message from file %s, read %d bytes\n",
-	    file, err);
+            "E: Unable to read status message from file %s, read %d bytes\n",
+            file, err);
     return -1;
   }
 
@@ -1072,7 +1137,7 @@ int libdbase_load_status_text(detector *det, const char *dir){
     return -1;
 
   int err;
-  char path[MAX_PATH_LEN - 10];
+  char path[MAX_PATH_LEN - 32];
   /* Load from custom path */
   if(dir != NULL)
     snprintf(path, sizeof(path), "%s/%d", dir, det->serial);
@@ -1083,7 +1148,7 @@ int libdbase_load_status_text(detector *det, const char *dir){
       return -1;
     }
   }
-  
+
   /* Status file path */
   char file[MAX_PATH_LEN];
   snprintf(file, sizeof(file), "%s/status.txt", path);
@@ -1094,12 +1159,12 @@ int libdbase_load_status_text(detector *det, const char *dir){
   /* Open file for reading (text) */
   FILE *fh = fopen(file, "r");
   if(fh == NULL){
-    fprintf(stderr, 
-	    "E: libdbase_load_status_text() Unable to open status file %s\n", 
-	    file);
+    fprintf(stderr,
+            "E: libdbase_load_status_text() Unable to open status file %s\n",
+            file);
     return -1;
   }
-  
+
   /* Parse human-readable text file to det.status */
   err = parse_status_lines(&det->status, fh);
 
@@ -1124,28 +1189,27 @@ int libdbase_load_status_text(detector *det, const char *dir){
 */
 int check_status_sanity(status_msg stat, status_msg *mod){
   int err = 1;
-  
+
   /* Create a copy of stat */
   memcpy((unsigned char*) mod, (unsigned char*)&stat, sizeof(status_msg));
 
-  /* 
-     If any of these tests fail, 
+  /*
+     If any of these tests fail,
      status is corrupt and err flag is set
   */
-  err &= (stat.LEN == DBASE_LEN);
-  err &= (stat.HVT > MIN_HV);
-  err &= (stat.HVT < MAX_HV);
+  err &= (stat.HVT * HV_FACTOR >= MIN_HV);
+  err &= (stat.HVT * HV_FACTOR <= MAX_HV);
 
   if(_DEBUG > 0)
     printf("Status %s the sanity tests\nCTRL before mod:0x%02x\n",
-	   err == 0 ? "failed" : "passed",
-	   (unsigned char)mod->CTRL);
-  /* 
+           err == 0 ? "failed" : "passed",
+           (unsigned char)mod->CTRL);
+  /*
      The CTRL byte should be set to:
      - HV off
      - PHA mode
      - stopped
-  */ 
+  */
   /* Stopped */
   mod->CTRL &= (uint8_t) OFF_MASK;
   /* HV off  */
@@ -1224,7 +1288,7 @@ int libdbase_set_list_mode(detector *det){
 
 /*
   Read packets in list mode
- 
+
   - buf can be null, in which case only the number
     of events is returned.
   - len is max number of pulses in *buf
@@ -1232,8 +1296,8 @@ int libdbase_set_list_mode(detector *det){
   - *time should point to an int initialized to zero when first called
 
 */
-int libdbase_read_lm_packets(detector *det, pulse *buf, 
-			     int len, int *read, uint32_t *time){
+int libdbase_read_lm_packets(detector *det, pulse *buf,
+                             int len, int *read, uint32_t *time){
   if( check_detector(det, "libdbase_read_lm_packets") < 0) return -1;
   if(len <= 0 || read == NULL || time == NULL){
       if(len <= 0)
@@ -1245,7 +1309,7 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
     return -1;
   }
   int err, io;
-  
+
   /* Request packets from digibase */
   err = dbase_write_one(det->dev, SPECTRUM, &io);
   if(err < 0 || io != 1){
@@ -1253,7 +1317,7 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
     err_str("libdbase_parse_lm_packets()", err);
     return err;
   }
-  
+
   /* Allocate temporary buffer */
   const int blen = len * sizeof(uint32_t);
   uint32_t *tmp = malloc( blen );
@@ -1261,10 +1325,10 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
     fprintf(stderr, "E: failed to allocate temporary buffer in libdbase_read_lm_packets()\n");
     return -ENOMEM;
   }
-  
-  /* 
-     Read packets, 
-     use libusb directly to avoid an additional buffer (in dbase_read()) 
+
+  /*
+     Read packets,
+     use libusb directly to avoid an additional buffer (in dbase_read())
   */
   /*err = libusb_bulk_transfer(det->dev, EP_IN, (unsigned char*) tmp, len, &io, S_TIMEOUT);*/
   /* 2012-02-25: modified len to correct nbr of bytes */
@@ -1277,7 +1341,7 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
     free(tmp);
     return err;
   }
-  
+
   /*
     Got io/4 int32's from digibase,
     but some int32's are timestamps.
@@ -1289,17 +1353,17 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
     for(k=0; k < io/4; k++)
       BYTESWAP(tmp[k]);
   }
-    
+
   /* Only count the number of events with amplitude */
   if(buf == NULL)
   {
     for(k=0; k < io/4; k++)
       {
-	/* End of data? */
-	if(tmp[k] == 0)
-	  break;
-	if(tmp[k] <= TS_MASK)
-	  r++;
+        /* End of data? */
+        if(tmp[k] == 0)
+          break;
+        if(tmp[k] <= TS_MASK)
+          r++;
       }
   }
   /* Parse additional information as well (amp, time) */
@@ -1307,27 +1371,27 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
   {
     for(k=0; k < io/4; k++)
     {
-	/* End of data? */	
-	if(tmp[k] == 0)
-	  break;
- 	/* Amplitude & time? */
-	else if(tmp[k] <= TS_MASK){
-	  buf[r].amp =  (uint32_t) ((tmp[k] & A_MASK) >> 21);
-	  /* First time tick after (in worst case) MAX_T us */
-	  buf[r].time = (uint32_t) (tmp[k] & T_MASK);
-	  /* Timer rollover? */
-	  if(buf[r].time > MAX_T){
-	    buf[r].time -= MAX_T;
-	  }
-	  buf[r].time += time[0];
-	  r++;
-	}
-	/* Timestamp then */
-	else
-	  time[0] = (uint32_t) (tmp[k] & TS_MASK);
+        /* End of data? */
+        if(tmp[k] == 0)
+          break;
+        /* Amplitude & time? */
+        else if(tmp[k] <= TS_MASK){
+          buf[r].amp =  (uint32_t) ((tmp[k] & A_MASK) >> 21);
+          /* First time tick after (in worst case) MAX_T us */
+          buf[r].time = (uint32_t) (tmp[k] & T_MASK);
+          /* Timer rollover? */
+          if(buf[r].time > MAX_T){
+            buf[r].time -= MAX_T;
+          }
+          buf[r].time += time[0];
+          r++;
+        }
+        /* Timestamp then */
+        else
+          time[0] = (uint32_t) (tmp[k] & TS_MASK);
       }
   }
-  
+
   /* Set number of read events */
   *read = r;
   /* Free internal buffer */
@@ -1337,9 +1401,9 @@ int libdbase_read_lm_packets(detector *det, pulse *buf,
 }
 
 /*
-  Iterate through libusb devices and 
+  Iterate through libusb devices and
   extract serial numbers of all digibases found.
-  
+
   - returns no more than len serial numbers in
     *serials (which must be allocated before call).
   - returns number of found serial numbers
@@ -1348,7 +1412,7 @@ int libdbase_list_serials(int *serials, int len) {
   if(serials == NULL || len == 0){
     if(len != 0)
       fprintf(stderr,
-	      "E: serials array must be initialized before calling libdbase_list_serials()\n");
+              "E: serials array must be initialized before calling libdbase_list_serials()\n");
     return -1;
   }
   /*
@@ -1374,16 +1438,16 @@ int libdbase_list_serials(int *serials, int len) {
     libusb_device *device = list[i];
     err = libusb_get_device_descriptor(device, &desc);
     /* is the device a dbase ? */
-    if(err == 0 && 
-       desc.idVendor == VENDOR_ID && 
+    if(err == 0 &&
+       desc.idVendor == VENDOR_ID &&
        desc.idProduct == PROD_ID){
       /* Open connection to device to aquire serial no */
       err = libusb_open(device, &handle);
       if(err < 0){
-	/* Unable to open usb connection to device - bail */
-	fprintf(stderr, "E: libdbase_list_serials() Error opening device\n");
-	libusb_free_device_list(list, 1);
-	return -1;
+        /* Unable to open usb connection to device - bail */
+        fprintf(stderr, "E: libdbase_list_serials() Error opening device\n");
+        libusb_free_device_list(list, 1);
+        return -1;
       }
       err = dbase_get_serial(device, handle, desc, &serials[found]);
       found++;
@@ -1391,9 +1455,9 @@ int libdbase_list_serials(int *serials, int len) {
       libusb_close(handle);
       /* Find more? */
       if(found == len){
-	if(i < cnt - 1)
-	  fprintf(stderr, "W: libdbase_list_serials() not all devices checked\nconsider increasing the buffer size\n");
-	break;
+        if(i < cnt - 1)
+          fprintf(stderr, "W: libdbase_list_serials() not all devices checked\nconsider increasing the buffer size\n");
+        break;
       }
     }
     else if(err < 0)
@@ -1401,15 +1465,15 @@ int libdbase_list_serials(int *serials, int len) {
   }
   if(_DEBUG > 0)
     printf("libdbase_list_serials() Exiting loop, found %d dbase(s)\n", found);
-  
+
   /* free libusb list */
   libusb_free_device_list(list, 1);
 
   /* exit libusb */
   libusb_exit(cntx);
-  
-  /* 
-     destroy context so libusb_init() 
+
+  /*
+     destroy context so libusb_init()
      is called the next time also
   */
   cntx = NULL;
@@ -1417,9 +1481,9 @@ int libdbase_list_serials(int *serials, int len) {
   return found;
 }
 
-/* 
+/*
    Get libdbase's path for current detector,
-   can be used by applications to save 
+   can be used by applications to save
    detector-specific data.
 */
 int libdbase_get_det_path(detector *det, char *path, ssize_t len){
@@ -1443,10 +1507,10 @@ int libdbase_get_det_path(detector *det, char *path, ssize_t len){
 int libdbase_get_path(char *path, ssize_t len){
 #ifdef PACK_PATH
   if(strlen(PACK_PATH) > len){
-    fprintf(stderr, 
-	    "E: path buffer cannot hold libdbase's PACK_PATH\n"
-	    "\tYou need a buffer size of at least %d bytes\n",
-	    (int)strlen(PACK_PATH));
+    fprintf(stderr,
+            "E: path buffer cannot hold libdbase's PACK_PATH\n"
+            "\tYou need a buffer size of at least %d bytes\n",
+            (int)strlen(PACK_PATH));
     return -1;
   }
   return snprintf(path, len, "%s", PACK_PATH);

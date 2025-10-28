@@ -1,11 +1,11 @@
-/* 
+/*
  * dbaserh.h: digibase C control program header file
- * 
+ *
  * adapted from dbase.h for the use with digiBaseRH
  * (2012-2014 Jan Kamenik)
- * ================================================= 
- * 
- * 
+ * =================================================
+ *
+ *
  * dbase.h: digibase C control program header file
  *
  * Copyright (c) 2011, 2012 Peder Kock <peder.kock@med.lu.se>
@@ -26,10 +26,10 @@
 
 #define PATH_MAX_LEN 256
 
-/* 
+/*
    Struct holding various user settings
-   -set 
-   -clr 
+   -set
+   -clr
    vars are stored in this struct
 */
 typedef struct{
@@ -37,6 +37,9 @@ typedef struct{
   int hvt;       /* HV target */
   double pw;     /* pulse width */
   double fgn;    /* fine gain */
+  int zero;      /* zero adjust */
+  int lld;       /* lower level discriminator */
+  int uld;       /* upper level discriminator */
   double ltp;    /* live time preset */
   double rtp;    /* real time preset */
   int gsch[2];   /* gain stab. chans. */
@@ -53,15 +56,15 @@ typedef struct{
 void handle_signal(int sig);
 
 /* Measure in list mode */
-void measure_list_mode(char lmc, 
-		       char lma, 
-		       char lmt, 
-		       unsigned long long lm_time, 
-		       unsigned long long sleept);
+void measure_list_mode(char lmc,
+                       char lma,
+                       char lmt,
+                       unsigned long long lm_time,
+                       unsigned long long sleept);
 
 /* Parse time argument */
-void parse_time(unsigned long long *duration, 
-		const char *input);
+void parse_time(unsigned long long *duration,
+                const char *input);
 
 /*
   Print short howto-guide
@@ -71,12 +74,12 @@ void print_usage();
 /*
   Parse settings struct
 */
-int parse_settings(const char* set, 
-		   char** val, 
-		   settings* opts, 
-		   int pos, 
-		   int argc, 
-		   int *k);
+int parse_settings(const char* set,
+                   char** val,
+                   settings* opts,
+                   int pos,
+                   int argc,
+                   int *k);
 
 /*
   Set settings to default
